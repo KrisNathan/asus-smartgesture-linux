@@ -1,0 +1,13 @@
+[Unit]
+Description=ASUS Touchpad Gesture Daemon
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/path/to/project/.venv/bin/python /path/to/project/touchpad_gesture.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target

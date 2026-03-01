@@ -1,0 +1,6 @@
+{
+  "left_edge_threshold_percent": 0.1,
+  "right_edge_threshold_percent": 0.9,
+  "sensitivity_y": 0.2,
+  "invert_y": false
+}
