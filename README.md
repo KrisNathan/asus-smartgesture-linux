@@ -22,6 +22,12 @@ Ensure you have the following system utilities installed (the install script wil
 - `qdbus` (usually pre-installed with KDE Plasma, used for brightness control)
 - `wireplumber` (specifically `wpctl`, for volume control)
 
+## Usage
+
+```
+sudo ./.venv/bin/python -m asus_touchpad_gesture.py
+```
+
 ## Installation
 
 The installation does not require running the daemon as root, but it does require setting up a `udev` rule to grant your user permission to read touchpad events.
