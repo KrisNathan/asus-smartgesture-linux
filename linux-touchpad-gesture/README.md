@@ -47,3 +47,42 @@ Or:
 - The ACL change is temporary and easy to undo with `./test.sh revoke`.
 - If the touchpad device is recreated, you may need to run `./test.sh grant` again.
 - `test.sh` auto-detects the first input device whose name contains `touchpad`.
+
+## User Service
+
+Install the Rust implementation as a `systemd --user` service with:
+
+```bash
+./install.sh
+```
+
+This does all of the following:
+
+- builds the release binary
+- installs `~/.config/systemd/user/asus-touchpad-gesture-rust.service`
+- copies the persistent udev rule to `/etc/udev/rules.d/99-touchpad-gestures.rules`
+- adds your user to the `input` group
+
+Start the service with:
+
+```bash
+systemctl --user start asus-touchpad-gesture-rust.service
+```
+
+After `./install.sh`, log out and log back in before starting the service so the `input` group change takes effect.
+
+Follow logs with:
+
+```bash
+journalctl --user -u asus-touchpad-gesture-rust.service -f
+```
+
+Remove the user service with:
+
+```bash
+./uninstall.sh
+```
+
+This removes the user service, deletes the installed udev rule, and removes your user from the `input` group.
+
+After `./uninstall.sh`, log out and log back in for the group removal to fully take effect.
