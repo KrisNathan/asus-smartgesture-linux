@@ -1,0 +1,49 @@
+# linux-touchpad-gesture
+
+Rust implementation of the touchpad gesture daemon for KDE Plasma.
+
+## Temporary Touchpad Access
+
+For MVP testing, run the daemon as your normal desktop user and grant temporary read access to the touchpad event device with [test.sh](/home/kris/Documents/projects/asus-touchpad-gesture-linux/linux-touchpad-gesture/test.sh).
+
+This avoids permanent system changes such as udev rules or group membership changes.
+
+### Check the detected touchpad device
+
+```bash
+./test.sh status
+```
+
+### Grant temporary access
+
+```bash
+./test.sh grant
+```
+
+This uses `setfacl` to grant your user read access to the detected `/dev/input/event*` device.
+
+### Run the daemon
+
+Run the binary as your normal user, not with `sudo`:
+
+```bash
+cargo run
+```
+
+Or:
+
+```bash
+./target/debug/linux-touchpad-gesture
+```
+
+### Revoke the temporary access
+
+```bash
+./test.sh revoke
+```
+
+## Notes
+
+- The ACL change is temporary and easy to undo with `./test.sh revoke`.
+- If the touchpad device is recreated, you may need to run `./test.sh grant` again.
+- `test.sh` auto-detects the first input device whose name contains `touchpad`.

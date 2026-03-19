@@ -7,6 +7,7 @@ static RIGHT_EDGE_THRESHOLD_PERCENT: f64 = 0.1;
 static SENSITIVITY: f64 = 0.5;
 static INVERT_Y: bool = false;
 static VOLUME_STEP: f64 = 0.05;
+static BRIGHTNESS_STEP: f64 = 0.05;
 
 impl ConfService for StaticConfService {
     fn new() -> Self {
@@ -20,6 +21,7 @@ impl ConfService for StaticConfService {
             sensitivity: SENSITIVITY,
             invert_y: INVERT_Y,
             volume_step: VOLUME_STEP,
+            brightness_step: BRIGHTNESS_STEP,
         })
     }
 
@@ -42,5 +44,8 @@ impl ConfService for StaticConfService {
     }
     fn get_volume_step(&self) -> f64 {
         VOLUME_STEP
+    }
+    fn get_brightness_step(&self) -> f64 {
+        BRIGHTNESS_STEP
     }
 }

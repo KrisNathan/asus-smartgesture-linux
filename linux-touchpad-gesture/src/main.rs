@@ -1,6 +1,9 @@
 mod audio;
 use audio::{AudioService, WpctlAudioService};
 
+mod brightness;
+use brightness::{BrightnessService, KDEQDBusBrightnessService};
+
 mod conf;
 use conf::{ConfService, StaticConfService};
 
@@ -12,9 +15,10 @@ use std::time::Duration;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let audio_service = Box::new(WpctlAudioService::new());
     let conf_service = Box::new(StaticConfService::new());
+    let brightness_service = Box::new(KDEQDBusBrightnessService::new()?);
 
     let mut touchpad_service =
-        touchpad_service::TouchpadService::new(conf_service, audio_service)?;
+        touchpad_service::TouchpadService::new(conf_service, audio_service, brightness_service)?;
 
     touchpad_service.init_debug();
 

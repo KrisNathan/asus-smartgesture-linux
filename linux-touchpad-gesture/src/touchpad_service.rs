@@ -3,10 +3,11 @@ use std::collections::HashMap;
 
 use crate::{
     audio::AudioService,
+    brightness::BrightnessService,
     conf::{Conf, ConfService},
     logging::debug_enabled,
 };
-use crate::debug_log;
+use crate::{brightness, debug_log};
 
 enum TouchpadActionMode {
     Volume,
@@ -83,7 +84,7 @@ fn get_action_mode(bounds: &TouchpadBounds, conf: &Conf, x: f64) -> Option<Touch
 
     if percent_x <= conf.left_edge_threshold_percent {
         Some(TouchpadActionMode::Volume)
-    } else if percent_x >= 1.0 - conf.right_edge_threshold_percent {
+    } else if percent_x >= conf.right_edge_threshold_percent {
         Some(TouchpadActionMode::Brightness)
     } else {
         None
@@ -101,6 +102,7 @@ pub struct TouchpadService {
     conf: Box<dyn ConfService>,
     device: Device,
     audio_service: Box<dyn AudioService>,
+    brightness_service: Box<dyn BrightnessService>,
 
     bounds: TouchpadBounds,
 
@@ -115,6 +117,7 @@ impl TouchpadService {
     pub fn new(
         conf: Box<dyn ConfService>,
         audio_service: Box<dyn AudioService>,
+        brightness_service: Box<dyn BrightnessService>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let devices = get_touchpad_devices();
         if devices.is_empty() {
@@ -130,6 +133,7 @@ impl TouchpadService {
             conf,
             device,
             audio_service,
+            brightness_service,
             bounds,
             current_slot: 0,
             active_touches: HashMap::new(),
@@ -217,12 +221,13 @@ impl TouchpadService {
 
                                     self.accumulated_delta_volume += adjusted_dy;
                                     if self.accumulated_delta_volume.abs() >= conf.volume_step {
-                                        let volume_steps =
-                                            (self.accumulated_delta_volume / conf.volume_step) as i32;
+                                        let volume_steps = (self.accumulated_delta_volume
+                                            / conf.volume_step)
+                                            as i32;
                                         let rounded_delta = volume_steps as f64 * conf.volume_step;
 
-                                        self.audio_service
-                                            .adjust_volume(&rounded_delta)?;
+                                        self.audio_service.adjust_volume(&rounded_delta)?;
+
                                         self.accumulated_delta_volume -= rounded_delta;
                                     }
                                 }
@@ -239,9 +244,20 @@ impl TouchpadService {
                                     }
 
                                     self.accumulated_delta_brightness += adjusted_dy;
-                                    if self.accumulated_delta_brightness.abs() >= 0.05 {
+                                    if self.accumulated_delta_brightness.abs()
+                                        >= conf.brightness_step
+                                    {
+                                        let brightness_steps = (self.accumulated_delta_brightness
+                                            / conf.brightness_step)
+                                            as i32;
+                                        let rounded_delta =
+                                            brightness_steps as f64 * conf.brightness_step;
+
                                         // TODO: brightness service
-                                        self.accumulated_delta_brightness = 0.0;
+                                        self.brightness_service
+                                            .adjust_brightness(&rounded_delta)?;
+
+                                        self.accumulated_delta_brightness -= rounded_delta;
                                     }
                                 }
                                 touch.last_y = Some(y);
