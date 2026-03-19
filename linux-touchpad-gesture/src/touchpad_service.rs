@@ -208,12 +208,11 @@ impl TouchpadService {
                                     // 5% step
                                     if self.accumulated_delta_volume.abs() >= 0.05 {
                                         self.audio_service
-                                            .adjust_volume(&(adjusted_dy * conf.sensitivity))?;
+                                            .adjust_volume(&self.accumulated_delta_volume)?;
                                         self.accumulated_delta_volume = 0.0;
                                     }
-                                } else {
-                                    touch.last_y = Some(y);
                                 }
+                                touch.last_y = Some(y);
                             }
                             Some(TouchpadActionMode::Brightness) => {
                                 if let Some(last_y) = touch.last_y {
@@ -230,9 +229,8 @@ impl TouchpadService {
                                         // TODO: brightness service
                                         self.accumulated_delta_brightness = 0.0;
                                     }
-                                } else {
-                                    touch.last_y = Some(y);
                                 }
+                                touch.last_y = Some(y);
                             }
                             None => {}
                         }
