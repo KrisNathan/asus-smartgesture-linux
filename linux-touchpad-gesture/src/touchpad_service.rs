@@ -205,11 +205,14 @@ impl TouchpadService {
                                     }
 
                                     self.accumulated_delta_volume += adjusted_dy;
-                                    // 5% step
-                                    if self.accumulated_delta_volume.abs() >= 0.05 {
+                                    if self.accumulated_delta_volume.abs() >= conf.volume_step {
+                                        let volume_steps =
+                                            (self.accumulated_delta_volume / conf.volume_step) as i32;
+                                        let rounded_delta = volume_steps as f64 * conf.volume_step;
+
                                         self.audio_service
-                                            .adjust_volume(&self.accumulated_delta_volume)?;
-                                        self.accumulated_delta_volume = 0.0;
+                                            .adjust_volume(&rounded_delta)?;
+                                        self.accumulated_delta_volume -= rounded_delta;
                                     }
                                 }
                                 touch.last_y = Some(y);

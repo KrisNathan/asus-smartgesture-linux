@@ -6,6 +6,7 @@ static LEFT_EDGE_THRESHOLD_PERCENT: f64 = 0.1;
 static RIGHT_EDGE_THRESHOLD_PERCENT: f64 = 0.1;
 static SENSITIVITY: f64 = 0.5;
 static INVERT_Y: bool = false;
+static VOLUME_STEP: f64 = 0.05;
 
 impl ConfService for StaticConfService {
     fn new() -> Self {
@@ -18,6 +19,7 @@ impl ConfService for StaticConfService {
             right_edge_threshold_percent: RIGHT_EDGE_THRESHOLD_PERCENT,
             sensitivity: SENSITIVITY,
             invert_y: INVERT_Y,
+            volume_step: VOLUME_STEP,
         })
     }
 
@@ -37,5 +39,8 @@ impl ConfService for StaticConfService {
     }
     fn get_invert_y(&self) -> bool {
         INVERT_Y
+    }
+    fn get_volume_step(&self) -> f64 {
+        VOLUME_STEP
     }
 }

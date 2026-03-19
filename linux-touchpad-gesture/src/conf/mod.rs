@@ -3,6 +3,7 @@ pub struct Conf {
     pub right_edge_threshold_percent: f64,
     pub sensitivity: f64,
     pub invert_y: bool,
+    pub volume_step: f64,
 }
 
 pub trait ConfService {
@@ -16,6 +17,7 @@ pub trait ConfService {
     fn get_right_edge_threshold_percent(&self) -> f64;
     fn get_sensitivity(&self) -> f64;
     fn get_invert_y(&self) -> bool;
+    fn get_volume_step(&self) -> f64;
 }
 
 
