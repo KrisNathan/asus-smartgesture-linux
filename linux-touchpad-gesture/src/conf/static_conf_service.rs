@@ -4,7 +4,7 @@ pub struct StaticConfService;
 
 static LEFT_EDGE_THRESHOLD_PERCENT: f64 = 0.1;
 static RIGHT_EDGE_THRESHOLD_PERCENT: f64 = 0.1;
-static SENSITIVITY: f64 = 0.2;
+static SENSITIVITY: f64 = 0.5;
 static INVERT_Y: bool = false;
 
 impl ConfService for StaticConfService {
