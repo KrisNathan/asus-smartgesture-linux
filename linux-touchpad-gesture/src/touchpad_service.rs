@@ -1,13 +1,13 @@
 use evdev::{AbsoluteAxisCode, Device, EventSummary};
 use std::collections::HashMap;
 
+use crate::debug_log;
 use crate::{
     audio::AudioService,
     brightness::BrightnessService,
     conf::{Conf, ConfService},
     logging::debug_enabled,
 };
-use crate::{brightness, debug_log};
 
 enum TouchpadActionMode {
     Volume,
@@ -99,11 +99,16 @@ struct ActiveTouch {
     last_y: Option<i32>,
 }
 
-pub struct TouchpadService {
-    conf: Box<dyn ConfService>,
+pub struct TouchpadService<'a, CS, AS, BS>
+where
+    CS: ConfService,
+    AS: AudioService,
+    BS: BrightnessService,
+{
+    conf: &'a CS,
     device: Device,
-    audio_service: Box<dyn AudioService>,
-    brightness_service: Box<dyn BrightnessService>,
+    audio_service: &'a AS,
+    brightness_service: &'a BS,
 
     bounds: TouchpadBounds,
 
@@ -114,11 +119,16 @@ pub struct TouchpadService {
     accumulated_delta_brightness: f64,
 }
 
-impl TouchpadService {
+impl<'a, CS, AS, BS> TouchpadService<'a, CS, AS, BS>
+where
+    CS: ConfService,
+    AS: AudioService,
+    BS: BrightnessService,
+{
     pub fn new(
-        conf: Box<dyn ConfService>,
-        audio_service: Box<dyn AudioService>,
-        brightness_service: Box<dyn BrightnessService>,
+        conf: &'a CS,
+        audio_service: &'a AS,
+        brightness_service: &'a BS,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let devices = get_touchpad_devices();
         if devices.is_empty() {

@@ -13,12 +13,12 @@ use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let audio_service = Box::new(WpctlAudioService::new());
-    let conf_service = Box::new(StaticConfService::new());
-    let brightness_service = Box::new(KDEQDBusBrightnessService::new()?);
+    let conf_service = StaticConfService::new();
+    let audio_service = WpctlAudioService::new();
+    let brightness_service = KDEQDBusBrightnessService::new()?;
 
     let mut touchpad_service =
-        touchpad_service::TouchpadService::new(conf_service, audio_service, brightness_service)?;
+        touchpad_service::TouchpadService::new(&conf_service, &audio_service, &brightness_service)?;
 
     touchpad_service.init_debug();
 
