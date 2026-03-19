@@ -95,6 +95,7 @@ struct ActiveTouch {
     x: Option<i32>,
     y: Option<i32>,
     action: Option<TouchpadActionMode>,
+    action_decided: bool,
     last_y: Option<i32>,
 }
 
@@ -186,6 +187,7 @@ impl TouchpadService {
                                 x: None,
                                 y: None,
                                 action: None,
+                                action_decided: false,
                                 last_y: None,
                             },
                         );
@@ -197,8 +199,9 @@ impl TouchpadService {
                     if let Some(touch) = self.active_touches.get_mut(&self.current_slot) {
                         touch.x = Some(x);
 
-                        if touch.action.is_none() {
+                        if !touch.action_decided {
                             touch.action = get_action_mode(bounds, &conf, x as f64);
+                            touch.action_decided = true;
                         }
                     }
                 }
