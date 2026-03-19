@@ -1,9 +1,12 @@
 use evdev::{AbsoluteAxisCode, Device, EventSummary};
+use std::collections::HashMap;
 
 use crate::{
     audio::AudioService,
     conf::{Conf, ConfService},
+    logging::debug_enabled,
 };
+use crate::debug_log;
 
 enum TouchpadActionMode {
     Volume,
@@ -15,7 +18,6 @@ struct TouchpadBounds {
     max_x: i32,
     min_y: i32,
     max_y: i32,
-    width: i32,
     height: i32,
 }
 
@@ -58,13 +60,12 @@ fn get_touchpad_bounds(device: &Device) -> Result<TouchpadBounds, Box<dyn std::e
     }
 
     match (min_x, max_x, min_y, max_y) {
-        (Some(mx), Some(Mx), Some(my), Some(My)) => Ok(TouchpadBounds {
-            min_x: mx,
-            max_x: Mx,
-            min_y: my,
-            max_y: My,
-            width: Mx - mx,
-            height: My - my,
+        (Some(min_x), Some(max_x), Some(min_y), Some(max_y)) => Ok(TouchpadBounds {
+            min_x,
+            max_x,
+            min_y,
+            max_y,
+            height: max_y - min_y,
         }),
         _ => Err("Touchpad doesn't support X/Y absolute axes".into()),
     }
@@ -104,34 +105,44 @@ pub struct TouchpadService {
     bounds: TouchpadBounds,
 
     current_slot: i32,
-    active_touches: std::collections::HashMap<i32, ActiveTouch>,
+    active_touches: HashMap<i32, ActiveTouch>,
 
     accumulated_delta_volume: f64,
     accumulated_delta_brightness: f64,
 }
 
 impl TouchpadService {
-    pub fn new(conf: Box<dyn ConfService>, audio_service: Box<dyn AudioService>) -> Self {
+    pub fn new(
+        conf: Box<dyn ConfService>,
+        audio_service: Box<dyn AudioService>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let devices = get_touchpad_devices();
         if devices.is_empty() {
-            panic!("No touchpad devices found.");
+            return Err("No touchpad devices found.".into());
         }
-        let device = devices.into_iter().next().unwrap();
-        let bounds = get_touchpad_bounds(&device).unwrap();
+        let device = devices
+            .into_iter()
+            .next()
+            .ok_or("No touchpad devices found.")?;
+        let bounds = get_touchpad_bounds(&device)?;
 
-        TouchpadService {
+        Ok(TouchpadService {
             conf,
             device,
             audio_service,
             bounds,
             current_slot: 0,
-            active_touches: std::collections::HashMap::new(),
+            active_touches: HashMap::new(),
             accumulated_delta_volume: 0.0,
             accumulated_delta_brightness: 0.0,
-        }
+        })
     }
 
     pub fn init_debug(&self) {
+        if !debug_enabled() {
+            return;
+        }
+
         let devices = get_touchpad_devices();
         if devices.is_empty() {
             println!("No touchpad devices found.");
@@ -155,16 +166,16 @@ impl TouchpadService {
             match event.destructure() {
                 EventSummary::AbsoluteAxis(_, AbsoluteAxisCode::ABS_MT_SLOT, value) => {
                     // slot management is necessary to track multiple touches independently
-                    println!("ABS_MT_SLOT {}", value);
+                    debug_log!("ABS_MT_SLOT {value}");
                     self.current_slot = value;
                 }
                 EventSummary::AbsoluteAxis(_, AbsoluteAxisCode::ABS_MT_TRACKING_ID, id) => {
                     // tracking_id of -1 indicates a touch has ended, otherwise it's a new touch
                     if id == -1 {
-                        println!("Touch ended");
+                        debug_log!("Touch ended");
                         self.active_touches.remove(&self.current_slot);
                     } else {
-                        println!("Touch started: {}", id);
+                        debug_log!("Touch started: {id}");
                         self.active_touches.insert(
                             self.current_slot,
                             ActiveTouch {
@@ -177,7 +188,7 @@ impl TouchpadService {
                     }
                 }
                 EventSummary::AbsoluteAxis(_, AbsoluteAxisCode::ABS_MT_POSITION_X, x) => {
-                    println!("ABS_MT_POSITION_X {}", x);
+                    debug_log!("ABS_MT_POSITION_X {x}");
 
                     if let Some(touch) = self.active_touches.get_mut(&self.current_slot) {
                         touch.x = Some(x);
@@ -188,7 +199,7 @@ impl TouchpadService {
                     }
                 }
                 EventSummary::AbsoluteAxis(_, AbsoluteAxisCode::ABS_MT_POSITION_Y, y) => {
-                    println!("ABS_MT_POSITION_Y {}", y);
+                    debug_log!("ABS_MT_POSITION_Y {y}");
 
                     if let Some(touch) = self.active_touches.get_mut(&self.current_slot) {
                         touch.y = Some(y);
