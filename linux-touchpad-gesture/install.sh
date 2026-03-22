@@ -6,8 +6,9 @@ SERVICE_NAME="asus-touchpad-gesture-rust.service"
 SERVICE_DIR="$HOME/.config/systemd/user"
 SERVICE_FILE="$SERVICE_DIR/$SERVICE_NAME"
 BIN_PATH="$PROJECT_DIR/target/release/linux-touchpad-gesture"
-RULES_SOURCE="$PROJECT_DIR/../99-touchpad-gestures.rules"
-RULES_TARGET="/etc/udev/rules.d/99-touchpad-gestures.rules"
+RULES_SOURCE="$PROJECT_DIR/../71-touchpad-gestures.rules"
+RULES_TARGET="/etc/udev/rules.d/71-touchpad-gestures.rules"
+OLD_RULES_TARGET="/etc/udev/rules.d/99-touchpad-gestures.rules"
 
 echo "Starting Rust touchpad gesture installation..."
 
@@ -48,10 +49,10 @@ echo "Building release binary..."
 cargo build --release --manifest-path "$PROJECT_DIR/Cargo.toml"
 
 echo "Installing persistent input-device permissions..."
+sudo rm -f "$OLD_RULES_TARGET"
 sudo cp "$RULES_SOURCE" "$RULES_TARGET"
 sudo udevadm control --reload-rules
 sudo udevadm trigger
-sudo usermod -aG input "$USER"
 
 mkdir -p "$SERVICE_DIR"
 
@@ -67,6 +68,21 @@ WorkingDirectory=$PROJECT_DIR
 ExecStart=$BIN_PATH
 Restart=on-failure
 RestartSec=2
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+UMask=0077
 
 [Install]
 WantedBy=graphical-session.target
@@ -80,8 +96,7 @@ echo "Installation complete."
 echo "Service file: $SERVICE_FILE"
 echo
 echo "Next steps:"
-echo "  1. Log out and log back in so the 'input' group change takes effect."
-echo "  2. Start the user service:"
+echo "  1. Start the user service:"
 echo "     systemctl --user start $SERVICE_NAME"
-echo "  3. Follow logs if needed:"
+echo "  2. Follow logs if needed:"
 echo "     journalctl --user -u $SERVICE_NAME -f"

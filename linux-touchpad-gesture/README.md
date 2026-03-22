@@ -60,8 +60,8 @@ This does all of the following:
 
 - builds the release binary
 - installs `~/.config/systemd/user/asus-touchpad-gesture-rust.service`
-- copies the persistent udev rule to `/etc/udev/rules.d/99-touchpad-gestures.rules`
-- adds your user to the `input` group
+- copies the persistent udev rule to `/etc/udev/rules.d/71-touchpad-gestures.rules`
+- enables `udev` `uaccess` ACLs for the active local desktop user
 
 Start the service with:
 
@@ -69,7 +69,9 @@ Start the service with:
 systemctl --user start asus-touchpad-gesture-rust.service
 ```
 
-After `./install.sh`, log out and log back in before starting the service so the `input` group change takes effect.
+This path does not require adding your user to the `input` group.
+
+The generated user service is hardened with a read-only system view, a private `/tmp`, no privilege escalation, and Unix-socket-only IPC. It intentionally does not use `PrivateDevices` because the daemon must still read the touchpad event node under `/dev/input`.
 
 Follow logs with:
 
@@ -83,6 +85,4 @@ Remove the user service with:
 ./uninstall.sh
 ```
 
-This removes the user service, deletes the installed udev rule, and removes your user from the `input` group.
-
-After `./uninstall.sh`, log out and log back in for the group removal to fully take effect.
+This removes the user service and deletes the installed udev rule.

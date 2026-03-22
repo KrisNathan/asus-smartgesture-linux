@@ -1,0 +1,3 @@
+# Grant the active local desktop session access to touchpad event devices.
+# This must run before systemd's seat rules so TAG+="uaccess" results in an ACL.
+KERNEL=="event*", SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHPAD}=="1", TAG+="uaccess"

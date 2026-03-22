@@ -30,7 +30,7 @@ sudo ./.venv/bin/python -m asus_touchpad_gesture.py
 
 ## Installation
 
-The installation does not require running the daemon as root, but it does require setting up a `udev` rule to grant your user permission to read touchpad events.
+The installation does not require running the daemon as root, but it does require setting up a `udev` rule to grant the active local desktop user permission to read touchpad events.
 
 1. Clone or download this repository.
 2. Make the install script executable:
@@ -41,22 +41,22 @@ The installation does not require running the daemon as root, but it does requir
    ```bash
    ./install.sh
    ```
-4. As instructed by the script, run the following commands with `sudo` to apply the necessary `udev` rules and add yourself to the `input` group:
+4. As instructed by the script, run the following commands with `sudo` to apply the necessary `udev` rule:
 
    ```bash
-   sudo cp 99-touchpad-gestures.rules /etc/udev/rules.d/
+   sudo cp 71-touchpad-gestures.rules /etc/udev/rules.d/
    sudo udevadm control --reload-rules && sudo udevadm trigger
-   sudo usermod -aG input $USER
    ```
 
    _(If brightness controls do not work out of the box, you may also need to run `sudo usermod -aG video $USER`)_
 
-5. **Log out and log back in** for the group permissions to take effect.
-6. Start and enable the gesture daemon:
+5. Start and enable the gesture daemon:
    ```bash
    systemctl --user start asus-touchpad-gesture.service
    systemctl --user enable asus-touchpad-gesture.service
    ```
+
+The generated user service is hardened with a read-only system view, a private `/tmp`, no privilege escalation, and Unix-socket-only IPC. It intentionally does not use `PrivateDevices` because the daemon must still read the touchpad event node under `/dev/input`.
 
 ## Configuration
 
@@ -84,7 +84,7 @@ systemctl --user restart asus-touchpad-gesture.service
 
 ## Troubleshooting
 
-- **No volume/brightness change:** Verify you are part of the `input` group by running `groups`. If `input` is missing, ensure you ran the `usermod` command and fully logged out/in.
+- **No volume/brightness change:** Verify the `udev` rule is installed as `/etc/udev/rules.d/71-touchpad-gestures.rules` and reloaded. You can inspect the device ACLs with `getfacl /dev/input/eventX` and confirm your active desktop user has read access.
 - **Check daemon logs:**
   ```bash
   journalctl --user -u asus-touchpad-gesture.service -f

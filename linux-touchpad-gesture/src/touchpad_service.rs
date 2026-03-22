@@ -1,5 +1,6 @@
 use evdev::{AbsoluteAxisCode, Device, EventSummary};
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use crate::debug_log;
 use crate::{
@@ -23,21 +24,54 @@ struct TouchpadBounds {
 }
 
 fn check_touchpad(device: &Device) -> bool {
-    device
-        .supported_absolute_axes()
-        .map_or(false, |axes| axes.contains(AbsoluteAxisCode::ABS_X))
+    device.supported_absolute_axes().map_or(false, |axes| {
+        let has_x = axes.contains(AbsoluteAxisCode::ABS_X)
+            || axes.contains(AbsoluteAxisCode::ABS_MT_POSITION_X);
+        let has_y = axes.contains(AbsoluteAxisCode::ABS_Y)
+            || axes.contains(AbsoluteAxisCode::ABS_MT_POSITION_Y);
+
+        has_x && has_y
+    })
 }
 
-fn get_touchpad_devices() -> Vec<Device> {
-    evdev::enumerate()
-        .filter_map(|(path, device)| {
-            if check_touchpad(&device) {
-                Some(Device::open(path).ok()?)
-            } else {
-                None
+fn describe_touchpad_access_failure(path: &PathBuf, name: &str, error: &std::io::Error) -> String {
+    format!("{name} at {}: {error}", path.display())
+}
+
+fn get_touchpad_devices() -> Result<Vec<Device>, Box<dyn std::error::Error>> {
+    let mut devices = Vec::new();
+    let mut open_failures = Vec::new();
+    let mut saw_touchpad_candidate = false;
+
+    for (path, device) in evdev::enumerate() {
+        if !check_touchpad(&device) {
+            continue;
+        }
+
+        saw_touchpad_candidate = true;
+        let device_name = device.name().unwrap_or("Unknown touchpad");
+
+        match Device::open(&path) {
+            Ok(device) => devices.push(device),
+            Err(error) => {
+                open_failures.push(describe_touchpad_access_failure(&path, device_name, &error))
             }
-        })
-        .collect()
+        }
+    }
+
+    if !devices.is_empty() {
+        return Ok(devices);
+    }
+
+    if saw_touchpad_candidate {
+        let details = open_failures.join("; ");
+        return Err(format!(
+            "Touchpad device detected but could not be opened. Check /dev/input permissions and the installed udev rule. Details: {details}"
+        )
+        .into());
+    }
+
+    Err("No touchpad devices found.".into())
 }
 
 fn get_touchpad_bounds(device: &Device) -> Result<TouchpadBounds, Box<dyn std::error::Error>> {
@@ -52,7 +86,15 @@ fn get_touchpad_bounds(device: &Device) -> Result<TouchpadBounds, Box<dyn std::e
                 min_x = Some(info.minimum());
                 max_x = Some(info.maximum());
             }
+            AbsoluteAxisCode::ABS_MT_POSITION_X if min_x.is_none() || max_x.is_none() => {
+                min_x = Some(info.minimum());
+                max_x = Some(info.maximum());
+            }
             AbsoluteAxisCode::ABS_Y => {
+                min_y = Some(info.minimum());
+                max_y = Some(info.maximum());
+            }
+            AbsoluteAxisCode::ABS_MT_POSITION_Y if min_y.is_none() || max_y.is_none() => {
                 min_y = Some(info.minimum());
                 max_y = Some(info.maximum());
             }
@@ -130,10 +172,7 @@ where
         audio_service: &'a AS,
         brightness_service: &'a BS,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let devices = get_touchpad_devices();
-        if devices.is_empty() {
-            return Err("No touchpad devices found.".into());
-        }
+        let devices = get_touchpad_devices()?;
         let device = devices
             .into_iter()
             .next()
@@ -158,9 +197,8 @@ where
             return;
         }
 
-        let devices = get_touchpad_devices();
-        if devices.is_empty() {
-            println!("No touchpad devices found.");
+        if let Err(error) = get_touchpad_devices() {
+            println!("{error}");
             return;
         }
 

@@ -1,6 +1,0 @@
-# Allow the input group to access event devices
-# Specifically targeting touchpads to avoid matching everything if possible,
-# but usually checking EV_ABS is enough. Adding DEVNAME=="/dev/input/event*" is standard.
-
-KERNEL=="event*", SUBSYSTEM=="input", ATTRS{name}=="*Touchpad*", MODE="0660", GROUP="input"
-KERNEL=="event*", SUBSYSTEM=="input", ATTRS{name}=="*touchpad*", MODE="0660", GROUP="input"

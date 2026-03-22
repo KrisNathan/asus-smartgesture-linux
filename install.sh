@@ -42,6 +42,22 @@ Type=simple
 ExecStart=$PROJECT_DIR/.venv/bin/python $PROJECT_DIR/touchpad_gesture.py
 Restart=on-failure
 RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+UMask=0077
+Environment=PYTHONDONTWRITEBYTECODE=1
 
 [Install]
 WantedBy=graphical-session.target
@@ -49,7 +65,7 @@ EOF
 
 systemctl --user daemon-reload
 systemctl --user enable asus-touchpad-gesture.service
-# Don't start it automatically yet because the user needs input group permissions
+# Don't start it automatically yet because the user still needs to install the udev rule
 
 echo ""
 echo "================================================================"
@@ -57,14 +73,12 @@ echo "Local setup complete! However, to read touchpad events, you"
 echo "need permission to read /dev/input/event* devices."
 echo ""
 echo "To do this safely without running the daemon as root, please"
-echo "run the following commands manually to add the udev rule and"
-echo "add yourself to the input group:"
+echo "run the following commands manually to install the udev rule"
+echo "that grants access to the active local desktop user:"
 echo ""
-echo "  sudo cp 99-touchpad-gestures.rules /etc/udev/rules.d/"
+echo "  sudo cp 71-touchpad-gestures.rules /etc/udev/rules.d/"
 echo "  sudo udevadm control --reload-rules && sudo udevadm trigger"
-echo "  sudo usermod -aG input \$USER"
 echo ""
-echo "After doing that, LOG OUT AND LOG BACK IN for the group change"
-echo "to take effect. Then start the service:"
+echo "After doing that, start the service:"
 echo "  systemctl --user start asus-touchpad-gesture.service"
 echo "================================================================"

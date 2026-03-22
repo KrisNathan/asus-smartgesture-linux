@@ -8,6 +8,22 @@ Type=simple
 ExecStart=/path/to/project/.venv/bin/python /path/to/project/touchpad_gesture.py
 Restart=on-failure
 RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+UMask=0077
+Environment=PYTHONDONTWRITEBYTECODE=1
 
 [Install]
 WantedBy=graphical-session.target
