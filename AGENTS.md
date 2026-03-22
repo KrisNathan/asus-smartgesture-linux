@@ -48,3 +48,7 @@
 - For Rust code changes, run at least `cargo fmt` and `cargo check` in the repository root unless the task prevents it.
 - Prefer adding or updating tests when behavior is subtle, stateful, or easy to regress.
 - If you cannot run validation, say so explicitly and explain the gap.
+
+## Git
+
+- If asked to do a git commit, always format the commit message according to the `git-semantic-commit-message` skill.
