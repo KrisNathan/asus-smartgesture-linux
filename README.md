@@ -1,92 +1,88 @@
-DISCLAIMER: Currently only a vibe-coded prototype. It works, but it's not production-ready.
+# linux-touchpad-gesture
 
-# ASUS Touchpad Gesture Linux
+Rust implementation of the touchpad gesture daemon for KDE Plasma.
 
-A lightweight background daemon for Linux that adds advanced touchpad edge-scrolling gestures, inspired by ASUS features on Windows. This tool allows you to smoothly adjust your system volume and screen brightness simply by swiping up or down along the extreme edges of your laptop's touchpad.
+## Temporary Touchpad Access
 
-Designed primarily for **Fedora 43** running **KDE Plasma 6 on Wayland**, it bypasses standard Wayland input isolation by reading directly from `evdev`, making it highly reliable.
+For MVP testing, run the daemon as your normal desktop user and grant temporary read access to the touchpad event device with [test.sh](./test.sh).
 
-## Features
+This avoids permanent system changes such as udev rules or group membership changes.
 
-- **Left-Edge Scroll:** Adjust system volume.
-- **Right-Edge Scroll:** Adjust screen brightness.
-- **Smoothness:** Adjustments are dynamically calculated based on the distance of your swipe.
-- **Wayland Native:** Works flawlessly under Wayland by hooking directly into `libevdev`.
-- **Low Footprint:** Written in Python using `asyncio` to ensure minimal CPU usage in the background.
+### Check the detected touchpad device
 
-## Prerequisites
-
-Ensure you have the following system utilities installed (the install script will check for them):
-
-- [`uv`](https://docs.astral.sh/uv/) (required for Python package management)
-- `qdbus` (usually pre-installed with KDE Plasma, used for brightness control)
-- `wireplumber` (specifically `wpctl`, for volume control)
-
-## Usage
-
-```
-sudo ./.venv/bin/python -m asus_touchpad_gesture.py
+```bash
+./test.sh status
 ```
 
-## Installation
+### Grant temporary access
 
-The installation does not require running the daemon as root, but it does require setting up a `udev` rule to grant the active local desktop user permission to read touchpad events.
+```bash
+./test.sh grant
+```
 
-1. Clone or download this repository.
-2. Make the install script executable:
-   ```bash
-   chmod +x install.sh
-   ```
-3. Run the local setup script to create the Python virtual environment and configure the user systemd service:
-   ```bash
-   ./install.sh
-   ```
-4. As instructed by the script, run the following commands with `sudo` to apply the necessary `udev` rule:
+This uses `setfacl` to grant your user read access to the detected `/dev/input/event*` device.
 
-   ```bash
-   sudo cp 71-touchpad-gestures.rules /etc/udev/rules.d/
-   sudo udevadm control --reload-rules && sudo udevadm trigger
-   ```
+### Run the daemon
 
-   _(If brightness controls do not work out of the box, you may also need to run `sudo usermod -aG video $USER`)_
+Run the binary as your normal user, not with `sudo`:
 
-5. Start and enable the gesture daemon:
-   ```bash
-   systemctl --user start asus-touchpad-gesture.service
-   systemctl --user enable asus-touchpad-gesture.service
-   ```
+```bash
+cargo run
+```
+
+Or:
+
+```bash
+./target/debug/linux-touchpad-gesture
+```
+
+### Revoke the temporary access
+
+```bash
+./test.sh revoke
+```
+
+## Notes
+
+- The ACL change is temporary and easy to undo with `./test.sh revoke`.
+- If the touchpad device is recreated, you may need to run `./test.sh grant` again.
+- `test.sh` auto-detects the first input device whose name contains `touchpad`.
+
+## User Service
+
+Install the Rust implementation as a `systemd --user` service with:
+
+```bash
+./install.sh
+```
+
+This does all of the following:
+
+- builds the release binary
+- installs `~/.config/systemd/user/asus-touchpad-gesture-rust.service`
+- copies the persistent udev rule to `/etc/udev/rules.d/71-touchpad-gestures.rules`
+- enables `udev` `uaccess` ACLs for the active local desktop user
+
+Start the service with:
+
+```bash
+systemctl --user start asus-touchpad-gesture-rust.service
+```
+
+This path does not require adding your user to the `input` group.
 
 The generated user service is hardened with a read-only system view, a private `/tmp`, no privilege escalation, and Unix-socket-only IPC. It intentionally does not use `PrivateDevices` because the daemon must still read the touchpad event node under `/dev/input`.
 
-## Configuration
-
-A configuration file is generated upon installation at `~/.config/asus-touchpad-gesture/config.json`.
-
-```json
-{
-  "left_edge_threshold_percent": 0.1,
-  "right_edge_threshold_percent": 0.9,
-  "sensitivity_y": 0.05,
-  "invert_y": false
-}
-```
-
-- **`left_edge_threshold_percent`**: Width of the left edge trigger zone (0.10 = 10% of the touchpad width).
-- **`right_edge_threshold_percent`**: Start of the right edge trigger zone (0.90 = the rightmost 10%).
-- **`sensitivity_y`**: Multiplier for the swipe distance. Lower values require longer swipes for the same volume/brightness change.
-- **`invert_y`**: Set to `true` if scrolling up decreases volume/brightness instead of increasing it.
-
-After modifying the configuration, restart the service:
+Follow logs with:
 
 ```bash
-systemctl --user restart asus-touchpad-gesture.service
+journalctl --user -u asus-touchpad-gesture-rust.service -f
 ```
 
-## Troubleshooting
+Remove the user service with:
 
-- **No volume/brightness change:** Verify the `udev` rule is installed as `/etc/udev/rules.d/71-touchpad-gestures.rules` and reloaded. You can inspect the device ACLs with `getfacl /dev/input/eventX` and confirm your active desktop user has read access.
-- **Check daemon logs:**
-  ```bash
-  journalctl --user -u asus-touchpad-gesture.service -f
-  ```
-- **"No touchpad device found" error:** Verify the `udev` rules are loaded correctly. You can also manually test your devices by running `evtest` (requires root) to verify which `/dev/input/eventX` corresponds to your touchpad.
+```bash
+./uninstall.sh
+```
+
+This removes the user service and deletes the installed udev rule.

@@ -2,19 +2,13 @@
 
 ## Mission
 
-- Treat this repository as a transition from a disposable Python prototype to the real Rust application.
-- The production app to ship and maintain lives in `linux-touchpad-gesture/`.
-- The deployable install and uninstall flow is `linux-touchpad-gesture/install.sh` and `linux-touchpad-gesture/uninstall.sh`.
-- The top-level Python implementation is a prototype and migration reference only. Assume it will be discarded. Do not add new product direction there unless a task explicitly says to touch the prototype.
+- Treat this repository as a production Rust application, `linux-touchpad-gesture`.
+- The deployable install and uninstall flow is `install.sh` and `uninstall.sh` at the repository root.
 
 ## Source Of Truth
 
-- Prefer the Rust implementation when behavior, docs, or scripts diverge.
-- Keep repo documentation explicit about the current state:
-  - Python at the repository root is prototype-only.
-  - Rust in `linux-touchpad-gesture/` is the deployable implementation.
-- Treat the top-level `install.sh` as prototype setup, not the production deployment path.
-- Avoid copying new logic from Rust back into Python unless the task is explicitly about prototype parity during migration.
+- Rust is the deployable implementation and the only supported source of truth.
+- The top-level `install.sh` and `uninstall.sh` manage the production deployment path.
 
 ## Correctness And Safety
 
@@ -28,7 +22,6 @@
 
 ## Rust Engineering Rules
 
-- Keep behavior changes inside `linux-touchpad-gesture/` unless the task explicitly requires prototype updates.
 - Prefer small, typed abstractions and `Result`-based error handling over ad hoc stringly control flow.
 - Keep modules cohesive. Push hardware, IPC, and shell interactions behind service boundaries when practical.
 - Validate edge cases around input devices, multi-touch state, missing dependencies, and permission failures.
@@ -37,7 +30,7 @@
 
 ## Installer And Uninstaller Contract
 
-- Treat `linux-touchpad-gesture/install.sh` and `linux-touchpad-gesture/uninstall.sh` as a matched pair.
+- Treat `install.sh` and `uninstall.sh` as a matched pair.
 - `uninstall.sh` must perform a clean teardown of everything `install.sh` adds or enables, and nothing unrelated.
 - If `install.sh` changes what it creates, copies, enables, or reloads, update `uninstall.sh` in the same change so teardown remains complete and correct.
 - Teardown must be safe to run repeatedly.
@@ -47,12 +40,11 @@
 ## Change Discipline
 
 - Make the smallest change that fully solves the task.
-- Do not mix prototype cleanups with Rust production work unless the task requires both.
 - Preserve existing hardening in service files unless there is a clear reason to change it.
 - If a change affects deployment, permissions, or teardown, update code, scripts, and docs together.
 
 ## Validation
 
-- For Rust code changes, run at least `cargo fmt` and `cargo check` in `linux-touchpad-gesture/` unless the task prevents it.
+- For Rust code changes, run at least `cargo fmt` and `cargo check` in the repository root unless the task prevents it.
 - Prefer adding or updating tests when behavior is subtle, stateful, or easy to regress.
 - If you cannot run validation, say so explicitly and explain the gap.

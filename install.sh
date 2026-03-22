@@ -1,47 +1,73 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "Starting ASUS Touchpad Gesture local setup..."
-PROJECT_DIR="$(pwd)"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SERVICE_NAME="asus-touchpad-gesture-rust.service"
+SERVICE_DIR="$HOME/.config/systemd/user"
+SERVICE_FILE="$SERVICE_DIR/$SERVICE_NAME"
+BIN_PATH="$PROJECT_DIR/target/release/linux-touchpad-gesture"
+RULES_SOURCE="$PROJECT_DIR/71-touchpad-gestures.rules"
+RULES_TARGET="/etc/udev/rules.d/71-touchpad-gestures.rules"
+OLD_RULES_TARGET="/etc/udev/rules.d/99-touchpad-gestures.rules"
 
-echo "1. Checking dependencies..."
-if ! command -v uv &> /dev/null; then
-    echo "Error: 'uv' is required. Please install it first (e.g. 'curl -LsSf https://astral.sh/uv/install.sh | sh')."
+echo "Starting Rust touchpad gesture installation..."
+
+if ! command -v cargo >/dev/null 2>&1; then
+    echo "Error: 'cargo' is required but was not found." >&2
     exit 1
 fi
-if ! command -v wpctl &> /dev/null; then
-    echo "Warning: 'wpctl' (wireplumber) not found. Volume control may not work."
-fi
-if ! command -v qdbus &> /dev/null; then
-    echo "Warning: 'qdbus' not found. Brightness control may not work."
-fi
 
-echo "2. Setting up Python environment with uv in $PROJECT_DIR..."
-uv sync
-
-echo "3. Creating user configuration directory..."
-mkdir -p "$HOME/.config/asus-touchpad-gesture"
-if [ ! -f "$HOME/.config/asus-touchpad-gesture/config.json" ]; then
-    cp config.json "$HOME/.config/asus-touchpad-gesture/"
-    echo "Copied default config.json to ~/.config/asus-touchpad-gesture/"
+if ! command -v systemctl >/dev/null 2>&1; then
+    echo "Error: 'systemctl' is required but was not found." >&2
+    exit 1
 fi
 
-echo "4. Setting up user systemd service..."
-SERVICE_FILE="$HOME/.config/systemd/user/asus-touchpad-gesture.service"
-mkdir -p "$HOME/.config/systemd/user"
+if ! command -v sudo >/dev/null 2>&1; then
+    echo "Error: 'sudo' is required but was not found." >&2
+    exit 1
+fi
 
-# Dynamically create the service file with the current path
-cat > "$SERVICE_FILE" << EOF
+if ! command -v udevadm >/dev/null 2>&1; then
+    echo "Error: 'udevadm' is required but was not found." >&2
+    exit 1
+fi
+
+if [[ ! -f "$RULES_SOURCE" ]]; then
+    echo "Error: udev rules file not found at $RULES_SOURCE" >&2
+    exit 1
+fi
+
+if ! command -v wpctl >/dev/null 2>&1; then
+    echo "Warning: 'wpctl' was not found. Volume control may not work."
+fi
+
+if ! command -v qdbus >/dev/null 2>&1; then
+    echo "Warning: 'qdbus' was not found. Brightness control may not work."
+fi
+
+echo "Building release binary..."
+cargo build --release --manifest-path "$PROJECT_DIR/Cargo.toml"
+
+echo "Installing persistent input-device permissions..."
+sudo rm -f "$OLD_RULES_TARGET"
+sudo cp "$RULES_SOURCE" "$RULES_TARGET"
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+
+mkdir -p "$SERVICE_DIR"
+
+cat > "$SERVICE_FILE" <<EOF
 [Unit]
-Description=ASUS Touchpad Gesture Daemon
+Description=ASUS Touchpad Gesture Daemon (Rust)
 After=graphical-session.target
 PartOf=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=$PROJECT_DIR/.venv/bin/python $PROJECT_DIR/touchpad_gesture.py
+WorkingDirectory=$PROJECT_DIR
+ExecStart=$BIN_PATH
 Restart=on-failure
-RestartSec=3
+RestartSec=2
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
@@ -57,28 +83,20 @@ RestrictSUIDSGID=yes
 LockPersonality=yes
 SystemCallArchitectures=native
 UMask=0077
-Environment=PYTHONDONTWRITEBYTECODE=1
 
 [Install]
 WantedBy=graphical-session.target
 EOF
 
 systemctl --user daemon-reload
-systemctl --user enable asus-touchpad-gesture.service
-# Don't start it automatically yet because the user still needs to install the udev rule
+systemctl --user enable "$SERVICE_NAME"
 
-echo ""
-echo "================================================================"
-echo "Local setup complete! However, to read touchpad events, you"
-echo "need permission to read /dev/input/event* devices."
-echo ""
-echo "To do this safely without running the daemon as root, please"
-echo "run the following commands manually to install the udev rule"
-echo "that grants access to the active local desktop user:"
-echo ""
-echo "  sudo cp 71-touchpad-gestures.rules /etc/udev/rules.d/"
-echo "  sudo udevadm control --reload-rules && sudo udevadm trigger"
-echo ""
-echo "After doing that, start the service:"
-echo "  systemctl --user start asus-touchpad-gesture.service"
-echo "================================================================"
+echo
+echo "Installation complete."
+echo "Service file: $SERVICE_FILE"
+echo
+echo "Next steps:"
+echo "  1. Start the user service:"
+echo "     systemctl --user start $SERVICE_NAME"
+echo "  2. Follow logs if needed:"
+echo "     journalctl --user -u $SERVICE_NAME -f"
