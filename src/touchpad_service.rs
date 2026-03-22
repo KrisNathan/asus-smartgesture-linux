@@ -1,4 +1,4 @@
-use evdev::{AbsoluteAxisCode, Device, EventSummary};
+use evdev::{AbsoluteAxisCode, Device, EventSummary, KeyCode};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -156,6 +156,7 @@ where
 
     current_slot: i32,
     active_touches: HashMap<i32, ActiveTouch>,
+    active_fingers: i32,
 
     accumulated_delta_volume: f64,
     accumulated_delta_brightness: f64,
@@ -187,6 +188,7 @@ where
             bounds,
             current_slot: 0,
             active_touches: HashMap::new(),
+            active_fingers: 0,
             accumulated_delta_volume: 0.0,
             accumulated_delta_brightness: 0.0,
         })
@@ -217,6 +219,53 @@ where
 
         for event in self.device.fetch_events()? {
             match event.destructure() {
+                EventSummary::Key(_, key, value) => {
+                    let mut new_fingers = self.active_fingers;
+                    match key {
+                        KeyCode::BTN_TOOL_FINGER => {
+                            if value == 1 {
+                                new_fingers = 1;
+                            } else if value == 0 && self.active_fingers == 1 {
+                                new_fingers = 0;
+                            }
+                        }
+                        KeyCode::BTN_TOOL_DOUBLETAP => {
+                            if value == 1 {
+                                new_fingers = 2;
+                            } else if value == 0 && self.active_fingers == 2 {
+                                new_fingers = 0;
+                            }
+                        }
+                        KeyCode::BTN_TOOL_TRIPLETAP => {
+                            if value == 1 {
+                                new_fingers = 3;
+                            } else if value == 0 && self.active_fingers == 3 {
+                                new_fingers = 0;
+                            }
+                        }
+                        KeyCode::BTN_TOOL_QUADTAP => {
+                            if value == 1 {
+                                new_fingers = 4;
+                            } else if value == 0 && self.active_fingers == 4 {
+                                new_fingers = 0;
+                            }
+                        }
+                        KeyCode::BTN_TOOL_QUINTTAP => {
+                            if value == 1 {
+                                new_fingers = 5;
+                            } else if value == 0 && self.active_fingers == 5 {
+                                new_fingers = 0;
+                            }
+                        }
+                        _ => {}
+                    }
+                    if new_fingers > 1 && self.active_fingers <= 1 {
+                        for touch in self.active_touches.values_mut() {
+                            touch.last_y = None;
+                        }
+                    }
+                    self.active_fingers = new_fingers;
+                }
                 EventSummary::AbsoluteAxis(_, AbsoluteAxisCode::ABS_MT_SLOT, value) => {
                     // slot management is necessary to track multiple touches independently
                     debug_log!("ABS_MT_SLOT {value}");
@@ -244,6 +293,10 @@ where
                 EventSummary::AbsoluteAxis(_, AbsoluteAxisCode::ABS_MT_POSITION_X, x) => {
                     debug_log!("ABS_MT_POSITION_X {x}");
 
+                    if self.active_fingers > 1 {
+                        continue;
+                    }
+
                     if let Some(touch) = self.active_touches.get_mut(&self.current_slot) {
                         touch.x = Some(x);
 
@@ -255,6 +308,10 @@ where
                 }
                 EventSummary::AbsoluteAxis(_, AbsoluteAxisCode::ABS_MT_POSITION_Y, y) => {
                     debug_log!("ABS_MT_POSITION_Y {y}");
+
+                    if self.active_fingers > 1 {
+                        continue;
+                    }
 
                     if let Some(touch) = self.active_touches.get_mut(&self.current_slot) {
                         touch.y = Some(y);
