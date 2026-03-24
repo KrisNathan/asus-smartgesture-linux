@@ -1,5 +1,5 @@
-mod conf;
-pub use conf::Conf;
+mod config;
+pub use config::Conf;
 
 mod conf_service;
 pub use conf_service::ConfService;

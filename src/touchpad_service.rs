@@ -1,6 +1,6 @@
 use evdev::{AbsoluteAxisCode, Device, EventSummary, KeyCode};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::debug_log;
 use crate::{
@@ -24,7 +24,7 @@ struct TouchpadBounds {
 }
 
 fn check_touchpad(device: &Device) -> bool {
-    device.supported_absolute_axes().map_or(false, |axes| {
+    device.supported_absolute_axes().is_some_and(|axes| {
         let has_x = axes.contains(AbsoluteAxisCode::ABS_X)
             || axes.contains(AbsoluteAxisCode::ABS_MT_POSITION_X);
         let has_y = axes.contains(AbsoluteAxisCode::ABS_Y)
@@ -34,7 +34,7 @@ fn check_touchpad(device: &Device) -> bool {
     })
 }
 
-fn describe_touchpad_access_failure(path: &PathBuf, name: &str, error: &std::io::Error) -> String {
+fn describe_touchpad_access_failure(path: &Path, name: &str, error: &std::io::Error) -> String {
     format!("{name} at {}: {error}", path.display())
 }
 
@@ -207,8 +207,8 @@ where
         let device = &self.device;
         println!("Using touchpad: {}", device.name().unwrap_or("Unknown"));
 
-        print!(
-            "Touchpad bounds: X[{}, {}], Y[{}, {}]\n",
+        println!(
+            "Touchpad bounds: X[{}, {}], Y[{}, {}]",
             self.bounds.min_x, self.bounds.max_x, self.bounds.min_y, self.bounds.max_y
         );
     }

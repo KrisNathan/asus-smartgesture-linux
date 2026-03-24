@@ -44,10 +44,7 @@ impl BrightnessService for KDEQDBusBrightnessService<'_> {
 
         let proxy = KDEPowerManagementProxyBlocking::new(&conn)?;
 
-        Ok(KDEQDBusBrightnessService {
-            conn: conn,
-            proxy: proxy,
-        })
+        Ok(KDEQDBusBrightnessService { conn, proxy })
     }
 
     fn adjust_brightness(&self, delta: &f64) -> Result<(), Box<dyn std::error::Error>> {
