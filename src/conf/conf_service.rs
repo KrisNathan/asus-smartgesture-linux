@@ -5,7 +5,7 @@ pub trait ConfService {
     where
         Self: Sized;
     fn get_conf(&self) -> Result<Conf, std::io::Error>;
-    fn save_conf(&self, conf: &Conf) -> Result<(), std::io::Error>;
+    fn save_conf(&self, conf: &Conf) -> Result<(), Box<dyn std::error::Error>>;
 
     fn get_left_edge_threshold_percent(&self) -> f64;
     fn get_right_edge_threshold_percent(&self) -> f64;

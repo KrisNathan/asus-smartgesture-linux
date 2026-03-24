@@ -48,6 +48,32 @@ Or:
 - If the touchpad device is recreated, you may need to run `./test.sh grant` again.
 - `test.sh` auto-detects the first input device whose name contains `touchpad`.
 
+## Configuration
+
+The daemon reads gesture configuration from `~/.config/asus-touchpad-gesture.toml`. If this file does not exist, the daemon uses built-in default values.
+
+Example `~/.config/asus-touchpad-gesture.toml`:
+
+```toml
+left_edge_threshold_percent = 0.1
+right_edge_threshold_percent = 0.9
+sensitivity = 0.5
+invert_y = false
+volume_step = 0.05
+brightness_step = 0.05
+```
+
+### Fields
+
+- `left_edge_threshold_percent`: Fraction of touchpad width for left edge gesture activation (0.0 to 1.0)
+- `right_edge_threshold_percent`: Fraction of touchpad width for right edge gesture activation (0.0 to 1.0)
+- `sensitivity`: Gesture detection sensitivity (0.0 to 1.0)
+- `invert_y`: Invert vertical gesture direction
+- `volume_step`: Volume change per gesture step (0.0 to 1.0)
+- `brightness_step`: Brightness change per gesture step (0.0 to 1.0)
+
+If the config file is missing, built-in defaults are used. If the file exists but contains invalid TOML or cannot be parsed, the daemon returns an error indicating the config path and failure reason.
+
 ## User Service
 
 Install the Rust implementation as a `systemd --user` service with:

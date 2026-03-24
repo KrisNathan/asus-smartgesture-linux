@@ -1,0 +1,214 @@
+use std::fs;
+use std::io;
+use std::path::PathBuf;
+
+use super::Conf;
+use super::conf_service::ConfService;
+use super::static_conf_service::StaticConfService;
+
+pub struct FileConfService {
+    config_path: PathBuf,
+    fallback: StaticConfService,
+}
+
+impl FileConfService {
+    pub fn new() -> Self {
+        let home = std::env::var_os("HOME").expect("HOME environment variable must be set");
+        let config_path = PathBuf::from(home)
+            .join(".config")
+            .join("asus-touchpad-gesture.toml");
+        FileConfService {
+            config_path,
+            fallback: StaticConfService::new(),
+        }
+    }
+
+    #[cfg(test)]
+    #[allow(dead_code)]
+    pub fn with_path(path: PathBuf) -> Self {
+        FileConfService {
+            config_path: path,
+            fallback: StaticConfService::new(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ConfService, FileConfService};
+    use std::fs;
+    use std::io;
+    use tempfile::TempDir;
+
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
+
+    fn temp_conf_service() -> (TempDir, FileConfService) {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join("test_config.toml");
+        let service = FileConfService::with_path(config_path);
+        (temp_dir, service)
+    }
+
+    #[test]
+    fn test_missing_file_falls_back_to_static() {
+        let (_temp_dir, service) = temp_conf_service();
+        let result = service.get_conf();
+        assert!(result.is_ok());
+        let conf = result.unwrap();
+        assert_eq!(conf.left_edge_threshold_percent, 0.1);
+        assert_eq!(conf.sensitivity, 0.5);
+    }
+
+    #[test]
+    fn test_valid_file_read() {
+        let (temp_dir, service) = temp_conf_service();
+        let toml_content = r#"
+left_edge_threshold_percent = 0.2
+right_edge_threshold_percent = 0.8
+sensitivity = 0.7
+invert_y = true
+volume_step = 0.1
+brightness_step = 0.15
+"#;
+        fs::write(&service.config_path, toml_content).unwrap();
+
+        let result = service.get_conf();
+        drop(temp_dir);
+        assert!(result.is_ok());
+        let conf = result.unwrap();
+        assert_eq!(conf.left_edge_threshold_percent, 0.2);
+        assert_eq!(conf.right_edge_threshold_percent, 0.8);
+        assert_eq!(conf.sensitivity, 0.7);
+        assert!(conf.invert_y);
+        assert_eq!(conf.volume_step, 0.1);
+        assert_eq!(conf.brightness_step, 0.15);
+    }
+
+    #[test]
+    fn test_invalid_toml_returns_error() {
+        let (temp_dir, service) = temp_conf_service();
+        fs::write(&service.config_path, "invalid toml content {").unwrap();
+
+        let result = service.get_conf();
+        drop(temp_dir);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+    }
+
+    #[test]
+    fn test_unreadable_file_returns_error() {
+        let (temp_dir, _service) = temp_conf_service();
+        let config_path = temp_dir.path().join("unreadable_config.toml");
+        let unreadable_service = FileConfService::with_path(config_path);
+
+        let conf = super::super::Conf {
+            left_edge_threshold_percent: 0.15,
+            right_edge_threshold_percent: 0.85,
+            sensitivity: 0.6,
+            invert_y: true,
+            volume_step: 0.08,
+            brightness_step: 0.12,
+        };
+        unreadable_service.save_conf(&conf).unwrap();
+
+        #[cfg(unix)]
+        {
+            let path = &unreadable_service.config_path;
+            let mut perms = fs::metadata(path).unwrap().permissions();
+            perms.set_mode(0o000);
+            fs::set_permissions(path, perms).unwrap();
+
+            let result = unreadable_service.get_conf();
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert_eq!(err.kind(), io::ErrorKind::PermissionDenied);
+        }
+    }
+
+    #[test]
+    fn test_save_and_read_conf() {
+        let (temp_dir, service) = temp_conf_service();
+        let conf = super::super::Conf {
+            left_edge_threshold_percent: 0.15,
+            right_edge_threshold_percent: 0.85,
+            sensitivity: 0.6,
+            invert_y: true,
+            volume_step: 0.08,
+            brightness_step: 0.12,
+        };
+        service.save_conf(&conf).unwrap();
+
+        let result = service.get_conf();
+        drop(temp_dir);
+        assert!(result.is_ok());
+        let loaded = result.unwrap();
+        assert_eq!(loaded.left_edge_threshold_percent, 0.15);
+        assert_eq!(loaded.sensitivity, 0.6);
+    }
+}
+
+impl ConfService for FileConfService {
+    fn new() -> Self {
+        Self::new()
+    }
+
+    fn get_conf(&self) -> Result<Conf, io::Error> {
+        let content = match fs::read_to_string(&self.config_path) {
+            Ok(c) => c,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                return self.fallback.get_conf();
+            }
+            Err(e) => {
+                return Err(e);
+            }
+        };
+        toml::from_str(&content).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    }
+
+    fn save_conf(&self, conf: &Conf) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(parent) = self.config_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let content =
+            toml::to_string(conf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        Ok(fs::write(&self.config_path, content)?)
+    }
+
+    fn get_left_edge_threshold_percent(&self) -> f64 {
+        self.get_conf()
+            .map(|c| c.left_edge_threshold_percent)
+            .unwrap_or_else(|_| self.fallback.get_left_edge_threshold_percent())
+    }
+
+    fn get_right_edge_threshold_percent(&self) -> f64 {
+        self.get_conf()
+            .map(|c| c.right_edge_threshold_percent)
+            .unwrap_or_else(|_| self.fallback.get_right_edge_threshold_percent())
+    }
+
+    fn get_sensitivity(&self) -> f64 {
+        self.get_conf()
+            .map(|c| c.sensitivity)
+            .unwrap_or_else(|_| self.fallback.get_sensitivity())
+    }
+
+    fn get_invert_y(&self) -> bool {
+        self.get_conf()
+            .map(|c| c.invert_y)
+            .unwrap_or_else(|_| self.fallback.get_invert_y())
+    }
+
+    fn get_volume_step(&self) -> f64 {
+        self.get_conf()
+            .map(|c| c.volume_step)
+            .unwrap_or_else(|_| self.fallback.get_volume_step())
+    }
+
+    fn get_brightness_step(&self) -> f64 {
+        self.get_conf()
+            .map(|c| c.brightness_step)
+            .unwrap_or_else(|_| self.fallback.get_brightness_step())
+    }
+}

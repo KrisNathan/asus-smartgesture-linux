@@ -5,7 +5,7 @@ mod brightness;
 use brightness::{BrightnessService, KDEQDBusBrightnessService};
 
 mod conf;
-use conf::{ConfService, StaticConfService};
+use conf::FileConfService;
 
 mod logging;
 mod touchpad_service;
@@ -13,7 +13,7 @@ use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let conf_service = StaticConfService::new();
+    let conf_service = FileConfService::new();
     let audio_service = WpctlAudioService::new();
     let brightness_service = KDEQDBusBrightnessService::new()?;
 

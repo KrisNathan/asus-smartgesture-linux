@@ -5,4 +5,9 @@ edition = "2024"
 
 [dependencies]
 evdev = "0.13.2"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
 zbus = "5.14.0"
+
+[dev-dependencies]
+tempfile = "3"

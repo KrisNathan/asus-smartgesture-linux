@@ -25,8 +25,7 @@ impl ConfService for StaticConfService {
         })
     }
 
-    fn save_conf(&self, _conf: &super::Conf) -> Result<(), std::io::Error> {
-        // No-op since this is a static conf service
+    fn save_conf(&self, _conf: &super::Conf) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
 
