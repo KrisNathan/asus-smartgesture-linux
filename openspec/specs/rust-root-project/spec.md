@@ -9,7 +9,7 @@ The repository root SHALL contain the deployable Rust application crate so that 
 
 #### Scenario: Production code no longer depends on a nested Rust project path
 - **WHEN** repository scripts or documentation refer to the deployable application
-- **THEN** they use root-relative Rust project paths instead of `linux-touchpad-gesture/`
+- **THEN** they use root-relative Rust project paths instead of `asus-smartgesture-linux/`
 
 ### Requirement: Prototype Python entrypoints are removed from the supported product layout
 The repository SHALL not ship the Python prototype as a supported runtime or setup path once the Rust project becomes the root product layout.

@@ -1,4 +1,4 @@
-# linux-touchpad-gesture
+# asus-smartgesture-linux
 
 Rust implementation of the touchpad gesture daemon for KDE Plasma.
 
@@ -33,7 +33,7 @@ cargo run
 Or:
 
 ```bash
-./target/debug/linux-touchpad-gesture
+./target/debug/asus-smartgesture-linux
 ```
 
 ### Revoke the temporary access

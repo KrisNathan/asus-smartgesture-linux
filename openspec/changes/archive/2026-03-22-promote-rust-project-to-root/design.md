@@ -1,6 +1,6 @@
 ## Context
 
-The repository is in an in-between state: the root contains a runnable Python prototype, Python packaging metadata, and a README that describes the prototype as the primary product, while the deployable Rust implementation already exists under `linux-touchpad-gesture/`. The Rust subproject includes the production-oriented install and uninstall scripts, a user-service deployment model, and the least-privilege udev-based device access model that the repository intends to ship.
+The repository is in an in-between state: the root contains a runnable Python prototype, Python packaging metadata, and a README that describes the prototype as the primary product, while the deployable Rust implementation already exists under `asus-smartgesture-linux/`. The Rust subproject includes the production-oriented install and uninstall scripts, a user-service deployment model, and the least-privilege udev-based device access model that the repository intends to ship.
 
 This change is primarily a migration of source-of-truth, layout, and operator entrypoints. It touches code layout, deployment scripts, asset paths, and contributor-facing documentation. Because the daemon interacts with input devices and system services, the migration must preserve the existing non-root execution model, keep install and uninstall behavior matched, and avoid leaving stale references to removed files.
 
@@ -23,7 +23,7 @@ This change is primarily a migration of source-of-truth, layout, and operator en
 
 ### Move the Rust project into the repository root
 
-The Rust crate, `src/` tree, and Rust-specific helper scripts will be promoted into the root rather than wrapped by a workspace or left inside `linux-touchpad-gesture/`.
+The Rust crate, `src/` tree, and Rust-specific helper scripts will be promoted into the root rather than wrapped by a workspace or left inside `asus-smartgesture-linux/`.
 
 Rationale:
 - The user explicitly wants the Rust project to become the root.
@@ -31,8 +31,8 @@ Rationale:
 - Wrapper Cargo manifests or forwarding scripts would preserve the same conceptual split that is already causing documentation drift.
 
 Alternatives considered:
-- Keep the Rust crate in `linux-touchpad-gesture/` and only rewrite the README. Rejected because it leaves the physical layout inconsistent with the documented source of truth.
-- Add a root Cargo workspace that points at `linux-touchpad-gesture/`. Rejected because it still keeps production code one level down and complicates scripts for little gain.
+- Keep the Rust crate in `asus-smartgesture-linux/` and only rewrite the README. Rejected because it leaves the physical layout inconsistent with the documented source of truth.
+- Add a root Cargo workspace that points at `asus-smartgesture-linux/`. Rejected because it still keeps production code one level down and complicates scripts for little gain.
 
 ### Replace, rather than preserve, the Python prototype path
 
@@ -73,12 +73,12 @@ Alternatives considered:
 
 - [Path-sensitive scripts break after the move] -> Rewrite all root-relative paths in install, uninstall, test, and documentation together, then validate the standard root commands.
 - [Installer and uninstaller drift during migration] -> Treat them as a matched pair in the same change and review every created file, service, and rule path together.
-- [Users with local habits around `linux-touchpad-gesture/`] -> Document the new root commands clearly and accept that this is a deliberate breaking repository-layout change.
+- [Users with local habits around `asus-smartgesture-linux/`] -> Document the new root commands clearly and accept that this is a deliberate breaking repository-layout change.
 - [Losing easy access to the prototype for comparison] -> Rely on git history instead of shipping duplicate runnable implementations.
 
 ## Migration Plan
 
-1. Move the Rust crate files and supporting scripts from `linux-touchpad-gesture/` into the repository root.
+1. Move the Rust crate files and supporting scripts from `asus-smartgesture-linux/` into the repository root.
 2. Merge or replace root assets so `install.sh`, `uninstall.sh`, the udev rule, README, and helper scripts all refer to the root Rust layout.
 3. Remove the Python prototype implementation and Python dependency metadata from the repository root.
 4. Run root-level validation for formatting and compilation, then verify the documented commands and asset references are consistent.

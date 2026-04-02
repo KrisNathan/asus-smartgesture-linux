@@ -1,12 +1,12 @@
 ## 1. Promote the Rust project to the repository root
 
-- [x] 1.1 Move the Rust crate files and supporting source tree from `linux-touchpad-gesture/` into the repository root so the root `Cargo.toml` and root `src/` define the production application.
+- [x] 1.1 Move the Rust crate files and supporting source tree from `asus-smartgesture-linux/` into the repository root so the root `Cargo.toml` and root `src/` define the production application.
 - [x] 1.2 Move any Rust-specific helper assets that remain part of the supported workflow, then remove the obsolete Python prototype files and the now-redundant nested project layout.
 
 ## 2. Rewire deployment and helper scripts
 
 - [x] 2.1 Replace the root `install.sh` with the production Rust install flow and update all asset paths so it builds and installs from the repository root.
-- [x] 2.2 Add or update the matching root `uninstall.sh` and any retained helper scripts so they remove only the assets created by installation and no longer reference `linux-touchpad-gesture/`.
+- [x] 2.2 Add or update the matching root `uninstall.sh` and any retained helper scripts so they remove only the assets created by installation and no longer reference `asus-smartgesture-linux/`.
 
 ## 3. Align documentation with the Rust root layout
 

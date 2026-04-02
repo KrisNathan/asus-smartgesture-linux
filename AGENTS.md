@@ -2,7 +2,7 @@
 
 ## Mission
 
-- Treat this repository as a production Rust application, `linux-touchpad-gesture`.
+- Treat this repository as a production Rust application, `asus-smartgesture-linux`.
 - The deployable install and uninstall flow is `install.sh` and `uninstall.sh` at the repository root.
 
 ## Source Of Truth
