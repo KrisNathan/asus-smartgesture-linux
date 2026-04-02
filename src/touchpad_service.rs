@@ -8,11 +8,13 @@ use crate::{
     brightness::BrightnessService,
     conf::{Conf, ConfService},
     logging::debug_enabled,
+    media::MediaService,
 };
 
 enum TouchpadActionMode {
     Volume,
     Brightness,
+    Media,
 }
 
 struct TouchpadBounds {
@@ -21,6 +23,12 @@ struct TouchpadBounds {
     min_y: i32,
     max_y: i32,
     height: i32,
+}
+
+impl TouchpadBounds {
+    fn width(&self) -> i32 {
+        self.max_x - self.min_x
+    }
 }
 
 fn check_touchpad(device: &Device) -> bool {
@@ -114,9 +122,14 @@ fn get_touchpad_bounds(device: &Device) -> Result<TouchpadBounds, Box<dyn std::e
     }
 }
 
-fn get_action_mode(bounds: &TouchpadBounds, conf: &Conf, x: f64) -> Option<TouchpadActionMode> {
+fn get_action_mode(
+    bounds: &TouchpadBounds,
+    conf: &Conf,
+    x: f64,
+    y: f64,
+) -> Option<TouchpadActionMode> {
     let width = bounds.max_x - bounds.min_x;
-    let _height = bounds.max_y - bounds.min_y; // currently unused, but may be useful for future features
+    let height = bounds.height;
 
     let percent_x = if width > 0 {
         (x - bounds.min_x as f64) / width as f64
@@ -124,13 +137,27 @@ fn get_action_mode(bounds: &TouchpadBounds, conf: &Conf, x: f64) -> Option<Touch
         0.0
     };
 
-    if percent_x <= conf.left_edge_threshold_percent {
-        Some(TouchpadActionMode::Volume)
-    } else if percent_x >= conf.right_edge_threshold_percent {
-        Some(TouchpadActionMode::Brightness)
+    let percent_y = if height > 0 {
+        (y - bounds.min_y as f64) / height as f64
     } else {
-        None
+        0.0
+    };
+
+    // Check left/right edges first (preserve existing volume/brightness behavior)
+    if percent_x <= conf.left_edge_threshold_percent {
+        return Some(TouchpadActionMode::Volume);
     }
+
+    if percent_x >= conf.right_edge_threshold_percent {
+        return Some(TouchpadActionMode::Brightness);
+    }
+
+    // Only check top edge if not on left/right edges
+    if percent_y <= conf.top_edge_threshold_percent {
+        return Some(TouchpadActionMode::Media);
+    }
+
+    None
 }
 
 struct ActiveTouch {
@@ -139,18 +166,21 @@ struct ActiveTouch {
     action: Option<TouchpadActionMode>,
     action_decided: bool,
     last_y: Option<i32>,
+    last_x: Option<i32>,
 }
 
-pub struct TouchpadService<'a, CS, AS, BS>
+pub struct TouchpadService<'a, CS, AS, BS, MS>
 where
     CS: ConfService,
     AS: AudioService,
     BS: BrightnessService,
+    MS: MediaService,
 {
     conf: &'a CS,
     device: Device,
     audio_service: &'a AS,
     brightness_service: &'a BS,
+    media_service: &'a MS,
 
     bounds: TouchpadBounds,
 
@@ -160,18 +190,21 @@ where
 
     accumulated_delta_volume: f64,
     accumulated_delta_brightness: f64,
+    accumulated_delta_media: f64,
 }
 
-impl<'a, CS, AS, BS> TouchpadService<'a, CS, AS, BS>
+impl<'a, CS, AS, BS, MS> TouchpadService<'a, CS, AS, BS, MS>
 where
     CS: ConfService,
     AS: AudioService,
     BS: BrightnessService,
+    MS: MediaService,
 {
     pub fn new(
         conf: &'a CS,
         audio_service: &'a AS,
         brightness_service: &'a BS,
+        media_service: &'a MS,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let devices = get_touchpad_devices()?;
         let device = devices
@@ -185,12 +218,14 @@ where
             device,
             audio_service,
             brightness_service,
+            media_service,
             bounds,
             current_slot: 0,
             active_touches: HashMap::new(),
             active_fingers: 0,
             accumulated_delta_volume: 0.0,
             accumulated_delta_brightness: 0.0,
+            accumulated_delta_media: 0.0,
         })
     }
 
@@ -262,6 +297,7 @@ where
                     if new_fingers > 1 && self.active_fingers <= 1 {
                         for touch in self.active_touches.values_mut() {
                             touch.last_y = None;
+                            touch.last_x = None;
                         }
                     }
                     self.active_fingers = new_fingers;
@@ -286,6 +322,7 @@ where
                                 action: None,
                                 action_decided: false,
                                 last_y: None,
+                                last_x: None,
                             },
                         );
                     }
@@ -300,9 +337,12 @@ where
                     if let Some(touch) = self.active_touches.get_mut(&self.current_slot) {
                         touch.x = Some(x);
 
+                        // Only decide action if we have both X and Y coordinates
                         if !touch.action_decided {
-                            touch.action = get_action_mode(bounds, &conf, x as f64);
-                            touch.action_decided = true;
+                            if let Some(y) = touch.y {
+                                touch.action = get_action_mode(bounds, &conf, x as f64, y as f64);
+                                touch.action_decided = true;
+                            }
                         }
                     }
                 }
@@ -315,6 +355,14 @@ where
 
                     if let Some(touch) = self.active_touches.get_mut(&self.current_slot) {
                         touch.y = Some(y);
+
+                        // Only decide action if we have both X and Y coordinates
+                        if !touch.action_decided {
+                            if let Some(x) = touch.x {
+                                touch.action = get_action_mode(bounds, &conf, x as f64, y as f64);
+                                touch.action_decided = true;
+                            }
+                        }
 
                         match touch.action {
                             Some(TouchpadActionMode::Volume) => {
@@ -369,6 +417,32 @@ where
                                     }
                                 }
                                 touch.last_y = Some(y);
+                            }
+                            Some(TouchpadActionMode::Media) => {
+                                // Media seek uses horizontal movement (X axis)
+                                if let (Some(current_x), Some(last_x)) = (touch.x, touch.last_x) {
+                                    let dx = current_x - last_x;
+                                    let fractional_dx = dx as f64 / bounds.width() as f64;
+                                    let adjusted_dx = fractional_dx * conf.sensitivity;
+
+                                    self.accumulated_delta_media += adjusted_dx;
+                                    if self.accumulated_delta_media.abs() >= 0.1 {
+                                        // Trigger seek after 10% horizontal movement
+                                        let direction = if self.accumulated_delta_media > 0.0 {
+                                            1 // Right swipe = forward
+                                        } else {
+                                            -1 // Left swipe = backward
+                                        };
+
+                                        let seek_offset = direction * conf.seek_step_microseconds;
+                                        self.media_service.seek(seek_offset)?;
+
+                                        self.accumulated_delta_media = 0.0;
+                                    }
+                                }
+                                if let Some(current_x) = touch.x {
+                                    touch.last_x = Some(current_x);
+                                }
                             }
                             None => {}
                         }

@@ -25,6 +25,12 @@ left_edge_threshold_percent = 0.1
 # Example: 0.9 means the rightmost 10% of the touchpad activates brightness gestures.
 right_edge_threshold_percent = 0.9
 
+# Top edge threshold (0.0 to 1.0)
+# Defines the fraction of touchpad height for top edge gesture activation.
+# Touches starting at y-coordinates below this percentage trigger media seek gestures.
+# Example: 0.1 means the topmost 10% of the touchpad activates seek gestures.
+top_edge_threshold_percent = 0.1
+
 # =============================================================================
 # Gesture Sensitivity
 # =============================================================================
@@ -58,3 +64,9 @@ volume_step = 0.05
 # The amount of brightness change per gesture step. 0.05 means 5% brightness
 # change per step. Adjust based on your display's brightness curve.
 brightness_step = 0.05
+
+# Media seek step in microseconds (0 to 60000000)
+# The amount of time to seek forward/backward when using top edge gestures.
+# 10_000_000 microseconds = 10 seconds. Only used when a media player
+# supporting MPRIS (e.g., VLC, Firefox, Spotify) is active.
+seek_step_microseconds = 10000000

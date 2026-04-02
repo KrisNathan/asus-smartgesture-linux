@@ -57,22 +57,51 @@ Example `~/.config/asus-touchpad-gesture.toml`:
 ```toml
 left_edge_threshold_percent = 0.1
 right_edge_threshold_percent = 0.9
+top_edge_threshold_percent = 0.1
 sensitivity = 0.5
 invert_y = false
 volume_step = 0.05
 brightness_step = 0.05
+seek_step_microseconds = 10000000
 ```
 
 ### Fields
 
 - `left_edge_threshold_percent`: Fraction of touchpad width for left edge gesture activation (0.0 to 1.0)
 - `right_edge_threshold_percent`: Fraction of touchpad width for right edge gesture activation (0.0 to 1.0)
+- `top_edge_threshold_percent`: Fraction of touchpad height for top edge gesture activation (0.0 to 1.0)
 - `sensitivity`: Gesture detection sensitivity (0.0 to 1.0)
 - `invert_y`: Invert vertical gesture direction
 - `volume_step`: Volume change per gesture step (0.0 to 1.0)
 - `brightness_step`: Brightness change per gesture step (0.0 to 1.0)
+- `seek_step_microseconds`: Media seek step in microseconds (default: 10,000,000 = 10 seconds)
 
 If the config file is missing, built-in defaults are used. If the file exists but contains invalid TOML or cannot be parsed, the daemon returns an error indicating the config path and failure reason.
+
+## Media Seek Gestures
+
+The daemon supports media playback control via top-edge horizontal swipe gestures when an MPRIS-compatible media player is running (e.g., Brave, Firefox, VLC, Spotify).
+
+### Usage
+
+- **Swipe right on top edge**: Seek forward by the configured step amount
+- **Swipe left on top edge**: Seek backward by the configured step amount
+
+### Requirements
+
+- An MPRIS-compatible media player must be running
+- Only single-finger gestures trigger media seek (multi-finger swipes are ignored)
+- The gesture must start within the top edge zone (configurable via `top_edge_threshold_percent`)
+
+### Example Configuration
+
+```toml
+# Top 10% of touchpad height triggers media seek
+top_edge_threshold_percent = 0.1
+
+# Seek 10 seconds per gesture (10,000,000 microseconds)
+seek_step_microseconds = 10000000
+```
 
 ## User Service
 

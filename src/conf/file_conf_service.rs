@@ -66,10 +66,12 @@ mod tests {
         let toml_content = r#"
 left_edge_threshold_percent = 0.2
 right_edge_threshold_percent = 0.8
+top_edge_threshold_percent = 0.15
 sensitivity = 0.7
 invert_y = true
 volume_step = 0.1
 brightness_step = 0.15
+seek_step_microseconds = 5000000
 "#;
         fs::write(&service.config_path, toml_content).unwrap();
 
@@ -79,10 +81,12 @@ brightness_step = 0.15
         let conf = result.unwrap();
         assert_eq!(conf.left_edge_threshold_percent, 0.2);
         assert_eq!(conf.right_edge_threshold_percent, 0.8);
+        assert_eq!(conf.top_edge_threshold_percent, 0.15);
         assert_eq!(conf.sensitivity, 0.7);
         assert!(conf.invert_y);
         assert_eq!(conf.volume_step, 0.1);
         assert_eq!(conf.brightness_step, 0.15);
+        assert_eq!(conf.seek_step_microseconds, 5_000_000);
     }
 
     #[test]
@@ -106,10 +110,12 @@ brightness_step = 0.15
         let conf = super::super::Conf {
             left_edge_threshold_percent: 0.15,
             right_edge_threshold_percent: 0.85,
+            top_edge_threshold_percent: 0.12,
             sensitivity: 0.6,
             invert_y: true,
             volume_step: 0.08,
             brightness_step: 0.12,
+            seek_step_microseconds: 7_000_000,
         };
         unreadable_service.save_conf(&conf).unwrap();
 
@@ -133,10 +139,12 @@ brightness_step = 0.15
         let conf = super::super::Conf {
             left_edge_threshold_percent: 0.15,
             right_edge_threshold_percent: 0.85,
+            top_edge_threshold_percent: 0.12,
             sensitivity: 0.6,
             invert_y: true,
             volume_step: 0.08,
             brightness_step: 0.12,
+            seek_step_microseconds: 7_000_000,
         };
         service.save_conf(&conf).unwrap();
 
@@ -188,6 +196,12 @@ impl ConfService for FileConfService {
             .unwrap_or_else(|_| self.fallback.get_right_edge_threshold_percent())
     }
 
+    fn get_top_edge_threshold_percent(&self) -> f64 {
+        self.get_conf()
+            .map(|c| c.top_edge_threshold_percent)
+            .unwrap_or_else(|_| self.fallback.get_top_edge_threshold_percent())
+    }
+
     fn get_sensitivity(&self) -> f64 {
         self.get_conf()
             .map(|c| c.sensitivity)
@@ -210,5 +224,11 @@ impl ConfService for FileConfService {
         self.get_conf()
             .map(|c| c.brightness_step)
             .unwrap_or_else(|_| self.fallback.get_brightness_step())
+    }
+
+    fn get_seek_step_microseconds(&self) -> i64 {
+        self.get_conf()
+            .map(|c| c.seek_step_microseconds)
+            .unwrap_or_else(|_| self.fallback.get_seek_step_microseconds())
     }
 }
