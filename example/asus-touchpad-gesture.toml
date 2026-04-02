@@ -1,0 +1,60 @@
+# ASUS Touchpad Gesture Daemon Configuration
+# Place this file at: ~/.config/asus-touchpad-gesture.toml
+#
+# This daemon enables edge gestures on the touchpad for controlling volume
+# and brightness. The touchpad is divided into three zones:
+# - Left edge (default 10%): Volume control gestures
+# - Middle (80%): Normal touchpad use, no gesture action
+# - Right edge (default 90%): Brightness control gestures
+#
+# Swipe up/down on the left or right edges to adjust volume or brightness.
+
+# =============================================================================
+# Edge Detection Thresholds
+# =============================================================================
+
+# Left edge threshold (0.0 to 1.0)
+# Defines the fraction of touchpad width for left edge gesture activation.
+# Touches starting at x-coordinates below this percentage trigger volume control.
+# Example: 0.1 means the leftmost 10% of the touchpad activates volume gestures.
+left_edge_threshold_percent = 0.1
+
+# Right edge threshold (0.0 to 1.0)
+# Defines the fraction of touchpad width for right edge gesture activation.
+# Touches starting at x-coordinates above this percentage trigger brightness control.
+# Example: 0.9 means the rightmost 10% of the touchpad activates brightness gestures.
+right_edge_threshold_percent = 0.9
+
+# =============================================================================
+# Gesture Sensitivity
+# =============================================================================
+
+# Sensitivity multiplier (0.0 to 1.0, or higher for increased sensitivity)
+# Controls how responsive the gestures are. Higher values mean larger volume/brightness
+# changes for the same finger movement. Default is balanced at 0.5.
+# - Lower values (e.g., 0.3): More subtle, finer control
+# - Higher values (e.g., 0.8): Faster, more responsive changes
+sensitivity = 0.5
+
+# =============================================================================
+# Gesture Direction
+# =============================================================================
+
+# Invert vertical gesture direction (true/false)
+# When false: Swipe UP to increase, DOWN to decrease
+# When true: Swipe DOWN to increase, UP to decrease
+invert_y = false
+
+# =============================================================================
+# Adjustment Steps
+# =============================================================================
+
+# Volume step size (0.0 to 1.0)
+# The amount of volume change per gesture step. 0.05 means 5% volume change
+# per step. Smaller values provide finer control but require more swiping.
+volume_step = 0.05
+
+# Brightness step size (0.0 to 1.0)
+# The amount of brightness change per gesture step. 0.05 means 5% brightness
+# change per step. Adjust based on your display's brightness curve.
+brightness_step = 0.05
