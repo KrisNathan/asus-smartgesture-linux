@@ -1,5 +1,6 @@
 use evdev::{AbsoluteAxisCode, Device, EventSummary, KeyCode};
 use std::collections::HashMap;
+use std::os::unix::io::{AsFd, BorrowedFd};
 use std::path::Path;
 
 use crate::debug_log;
@@ -452,5 +453,17 @@ where
             }
         }
         Ok(())
+    }
+}
+
+impl<'a, CS, AS, BS, MS> AsFd for TouchpadService<'a, CS, AS, BS, MS>
+where
+    CS: ConfService,
+    AS: AudioService,
+    BS: BrightnessService,
+    MS: MediaService,
+{
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.device.as_fd()
     }
 }
