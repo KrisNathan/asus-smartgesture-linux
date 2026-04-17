@@ -21,7 +21,8 @@ use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let conf_service = FileConfService::new();
+    let mut conf_service = FileConfService::new();
+    conf_service.load_file()?;
     let audio_service = WpctlAudioService::new();
     let brightness_service = KDEQDBusBrightnessService::new()?;
     let media_service = MprisMediaService::new()?;

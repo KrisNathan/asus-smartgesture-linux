@@ -9,6 +9,7 @@ use super::static_conf_service::StaticConfService;
 pub struct FileConfService {
     config_path: PathBuf,
     fallback: StaticConfService,
+    loaded_config: Option<Conf>,
 }
 
 impl FileConfService {
@@ -20,7 +21,21 @@ impl FileConfService {
         FileConfService {
             config_path,
             fallback: StaticConfService::new(),
+            loaded_config: None,
         }
+    }
+
+    pub fn load_file(&mut self) -> Result<(), io::Error> {
+        let content = match fs::read_to_string(&self.config_path) {
+            Ok(c) => c,
+            Err(e) => {
+                return Err(e);
+            }
+        };
+        let conf = toml::from_str::<Conf>(&content)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        self.loaded_config = Some(conf);
+        Ok(())
     }
 
     #[cfg(test)]
@@ -29,6 +44,7 @@ impl FileConfService {
         FileConfService {
             config_path: path,
             fallback: StaticConfService::new(),
+            loaded_config: None,
         }
     }
 }
@@ -162,17 +178,11 @@ impl ConfService for FileConfService {
         Self::new()
     }
 
-    fn get_conf(&self) -> Result<Conf, io::Error> {
-        let content = match fs::read_to_string(&self.config_path) {
-            Ok(c) => c,
-            Err(e) if e.kind() == io::ErrorKind::NotFound => {
-                return self.fallback.get_conf();
-            }
-            Err(e) => {
-                return Err(e);
-            }
-        };
-        toml::from_str(&content).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    fn get_conf(&self) -> Result<&Conf, io::Error> {
+        match self.loaded_config {
+            Some(ref conf) => Ok(conf),
+            None => self.fallback.get_conf(),
+        }
     }
 
     fn save_conf(&self, conf: &Conf) -> Result<(), Box<dyn std::error::Error>> {
