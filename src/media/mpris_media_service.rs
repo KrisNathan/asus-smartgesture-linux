@@ -1,12 +1,15 @@
-use std::{env, process::Command};
+use std::{cell::RefCell, env, process::Command};
 
-use zbus::blocking::{Connection, connection::Builder};
+use zbus::blocking::{connection::Builder, Connection};
 
 use crate::debug_log;
 use crate::media::MediaService;
 
 pub struct MprisMediaService {
     conn: Connection,
+    /// Cached MPRIS player name to avoid repeated ListNames calls.
+    /// Cleared when Seek fails (player disappeared/restarted).
+    cached_player: RefCell<Option<String>>,
 }
 
 impl MediaService for MprisMediaService {
@@ -23,40 +26,54 @@ impl MediaService for MprisMediaService {
             Connection::session()?
         };
 
-        Ok(MprisMediaService { conn })
+        Ok(MprisMediaService {
+            conn,
+            cached_player: RefCell::new(None),
+        })
     }
 
     fn seek(&self, offset_microseconds: i64) -> Result<(), Box<dyn std::error::Error>> {
-        // Find an MPRIS media player
-        let dbus_proxy = self.conn.call_method(
-            Some("org.freedesktop.DBus"),
-            "/org/freedesktop/DBus",
-            Some("org.freedesktop.DBus"),
-            "ListNames",
-            &(),
-        )?;
-
-        let names: Vec<String> = dbus_proxy.body().deserialize()?;
-
-        // Find the first MPRIS player
-        let player_name = names
-            .iter()
-            .find(|name| name.starts_with("org.mpris.MediaPlayer2."));
-
-        let player_name = match player_name {
-            Some(name) => name,
-            None => {
-                debug_log!("No MPRIS media player found, skipping seek");
+        // Try cached player first to avoid ListNames overhead
+        if let Some(ref player_name) = *self.cached_player.borrow() {
+            if self.try_seek(player_name, offset_microseconds).is_ok() {
                 return Ok(());
             }
-        };
+            // Cached player failed (disappeared/restarted), clear cache
+            debug_log!(
+                "Cached MPRIS player {} unavailable, re-scanning",
+                player_name
+            );
+            *self.cached_player.borrow_mut() = None;
+        }
 
-        // Call Seek method on the player
+        // Find an MPRIS media player via ListNames
+        let player_name = self.find_mpris_player()?;
+
+        match player_name {
+            Some(name) => {
+                *self.cached_player.borrow_mut() = Some(name.clone());
+                self.try_seek(&name, offset_microseconds)
+            }
+            None => {
+                debug_log!("No MPRIS media player found, skipping seek");
+                Ok(())
+            }
+        }
+    }
+}
+
+impl MprisMediaService {
+    /// Performs the actual Seek D-Bus call.
+    fn try_seek(
+        &self,
+        player_name: &str,
+        offset_microseconds: i64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let object_path = "/org/mpris/MediaPlayer2";
         let interface = "org.mpris.MediaPlayer2.Player";
 
         let result = self.conn.call_method(
-            Some(player_name.as_str()),
+            Some(player_name),
             object_path,
             Some(interface),
             "Seek",
@@ -73,5 +90,25 @@ impl MediaService for MprisMediaService {
                 Err(Box::new(e))
             }
         }
+    }
+
+    /// Lists MPRIS players on D-Bus. Returns None if none found.
+    fn find_mpris_player(&self) -> Result<Option<String>, Box<dyn std::error::Error>> {
+        let dbus_proxy = self.conn.call_method(
+            Some("org.freedesktop.DBus"),
+            "/org/freedesktop/DBus",
+            Some("org.freedesktop.DBus"),
+            "ListNames",
+            &(),
+        )?;
+
+        let names: Vec<String> = dbus_proxy.body().deserialize()?;
+
+        let player_name = names
+            .iter()
+            .find(|name| name.starts_with("org.mpris.MediaPlayer2."))
+            .cloned();
+
+        Ok(player_name)
     }
 }
