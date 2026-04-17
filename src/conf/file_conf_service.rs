@@ -14,7 +14,7 @@ pub struct FileConfService {
 
 impl FileConfService {
     pub fn new() -> Self {
-        let home = std::env::var_os("HOME").expect("HOME environment variable must be set");
+        let home = std::env::var_os("HOME").unwrap_or(std::ffi::OsString::from("."));
         let config_path = PathBuf::from(home)
             .join(".config")
             .join("asus-touchpad-gesture.toml");

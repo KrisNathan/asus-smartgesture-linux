@@ -50,7 +50,7 @@ Or:
 
 ## Configuration
 
-The daemon reads gesture configuration from `~/.config/asus-touchpad-gesture.toml`. If this file does not exist, the daemon uses built-in default values.
+The daemon reads gesture configuration from `~/.config/asus-touchpad-gesture.toml`. If the `HOME` environment variable is not set, the config path falls back to the current directory (`./.config/asus-touchpad-gesture.toml`). If the config file does not exist, the daemon uses built-in default values.
 
 After modifying the configuration, don't forget to restart the service: `systemctl --user restart asus-touchpad-gesture-rust.service`
 
