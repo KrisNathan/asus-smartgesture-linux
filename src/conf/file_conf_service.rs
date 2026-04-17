@@ -78,7 +78,7 @@ mod tests {
 
     #[test]
     fn test_valid_file_read() {
-        let (temp_dir, service) = temp_conf_service();
+        let (temp_dir, mut service) = temp_conf_service();
         let toml_content = r#"
 left_edge_threshold_percent = 0.2
 right_edge_threshold_percent = 0.8
@@ -91,6 +91,7 @@ seek_step_microseconds = 5000000
 "#;
         fs::write(&service.config_path, toml_content).unwrap();
 
+        service.load_file().unwrap();
         let result = service.get_conf();
         drop(temp_dir);
         assert!(result.is_ok());
@@ -107,10 +108,10 @@ seek_step_microseconds = 5000000
 
     #[test]
     fn test_invalid_toml_returns_error() {
-        let (temp_dir, service) = temp_conf_service();
+        let (temp_dir, mut service) = temp_conf_service();
         fs::write(&service.config_path, "invalid toml content {").unwrap();
 
-        let result = service.get_conf();
+        let result = service.load_file();
         drop(temp_dir);
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -121,7 +122,7 @@ seek_step_microseconds = 5000000
     fn test_unreadable_file_returns_error() {
         let (temp_dir, _service) = temp_conf_service();
         let config_path = temp_dir.path().join("unreadable_config.toml");
-        let unreadable_service = FileConfService::with_path(config_path);
+        let mut unreadable_service = FileConfService::with_path(config_path);
 
         let conf = super::super::Conf {
             left_edge_threshold_percent: 0.15,
@@ -142,7 +143,7 @@ seek_step_microseconds = 5000000
             perms.set_mode(0o000);
             fs::set_permissions(path, perms).unwrap();
 
-            let result = unreadable_service.get_conf();
+            let result = unreadable_service.load_file();
             assert!(result.is_err());
             let err = result.unwrap_err();
             assert_eq!(err.kind(), io::ErrorKind::PermissionDenied);
@@ -151,7 +152,7 @@ seek_step_microseconds = 5000000
 
     #[test]
     fn test_save_and_read_conf() {
-        let (temp_dir, service) = temp_conf_service();
+        let (temp_dir, mut service) = temp_conf_service();
         let conf = super::super::Conf {
             left_edge_threshold_percent: 0.15,
             right_edge_threshold_percent: 0.85,
@@ -164,6 +165,7 @@ seek_step_microseconds = 5000000
         };
         service.save_conf(&conf).unwrap();
 
+        service.load_file().unwrap();
         let result = service.get_conf();
         drop(temp_dir);
         assert!(result.is_ok());
