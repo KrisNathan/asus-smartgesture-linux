@@ -42,7 +42,7 @@ fn check_touchpad(device: &Device) -> bool {
     })
 }
 
-fn get_touchpad_devices() -> Result<Vec<Device>, Box<dyn std::error::Error>> {
+fn get_touchpad_devices() -> Result<Device, Box<dyn std::error::Error>> {
     let mut devices = Vec::new();
 
     for (_, device) in evdev::enumerate() {
@@ -53,9 +53,19 @@ fn get_touchpad_devices() -> Result<Vec<Device>, Box<dyn std::error::Error>> {
         devices.push(device);
     }
 
-    (!devices.is_empty())
-        .then_some(devices)
-        .ok_or_else(|| "No touchpad devices found.".into())
+    let best_device = devices
+        .into_iter()
+        .max_by_key(|d| {
+            let name = d.name().unwrap_or("");
+            let has_touchpad = name.to_lowercase().contains("touchpad");
+            let has_buttons = d
+                .supported_keys()
+                .map_or(false, |k| k.contains(KeyCode::BTN_LEFT));
+            (has_touchpad as i32, has_buttons as i32)
+        })
+        .ok_or("No touchpad devices found.")?;
+
+    Ok(best_device)
 }
 
 fn get_touchpad_bounds(device: &Device) -> Result<TouchpadBounds, Box<dyn std::error::Error>> {
@@ -182,11 +192,7 @@ where
         brightness_service: &'a BS,
         media_service: &'a MS,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let devices = get_touchpad_devices()?;
-        let device = devices
-            .into_iter()
-            .next()
-            .ok_or("No touchpad devices found.")?;
+        let device = get_touchpad_devices()?;
         let bounds = get_touchpad_bounds(&device)?;
 
         Ok(TouchpadService {
