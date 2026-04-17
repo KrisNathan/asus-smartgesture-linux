@@ -1,7 +1,6 @@
 use evdev::{AbsoluteAxisCode, Device, EventSummary, KeyCode};
 use std::collections::HashMap;
 use std::os::unix::io::{AsFd, BorrowedFd};
-use std::path::Path;
 
 use crate::debug_log;
 use crate::{
@@ -43,44 +42,20 @@ fn check_touchpad(device: &Device) -> bool {
     })
 }
 
-fn describe_touchpad_access_failure(path: &Path, name: &str, error: &std::io::Error) -> String {
-    format!("{name} at {}: {error}", path.display())
-}
-
 fn get_touchpad_devices() -> Result<Vec<Device>, Box<dyn std::error::Error>> {
     let mut devices = Vec::new();
-    let mut open_failures = Vec::new();
-    let mut saw_touchpad_candidate = false;
 
-    for (path, device) in evdev::enumerate() {
+    for (_, device) in evdev::enumerate() {
         if !check_touchpad(&device) {
             continue;
         }
 
-        saw_touchpad_candidate = true;
-        let device_name = device.name().unwrap_or("Unknown touchpad");
-
-        match Device::open(&path) {
-            Ok(device) => devices.push(device),
-            Err(error) => {
-                open_failures.push(describe_touchpad_access_failure(&path, device_name, &error))
-            }
-        }
+        devices.push(device);
     }
 
-    if !devices.is_empty() {
-        return Ok(devices);
-    }
-
-    if saw_touchpad_candidate {
-        let details = open_failures.join("; ");
-        return Err(format!(
-            "Touchpad device detected but could not be opened. Check /dev/input permissions and the installed udev rule. Details: {details}"
-        )
-        .into());
-    }
-
-    Err("No touchpad devices found.".into())
+    (!devices.is_empty())
+        .then_some(devices)
+        .ok_or_else(|| "No touchpad devices found.".into())
 }
 
 fn get_touchpad_bounds(device: &Device) -> Result<TouchpadBounds, Box<dyn std::error::Error>> {
