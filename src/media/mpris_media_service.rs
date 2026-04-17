@@ -1,6 +1,6 @@
 use std::{cell::RefCell, env, process::Command};
 
-use zbus::blocking::{connection::Builder, Connection};
+use zbus::blocking::{Connection, connection::Builder};
 
 use crate::debug_log;
 use crate::media::MediaService;
