@@ -1,54 +1,60 @@
-# Repository Agent Rules
+# Repository Rules
 
-## Mission
+- Prod Rust app `asus-smartgesture-linux`.
+- Deploy: root `install.sh` + `uninstall.sh`.
+- Source of truth: Rust; scripts own deploy.
 
-- Treat this repository as a production Rust application, `asus-smartgesture-linux`.
-- The deployable install and uninstall flow is `install.sh` and `uninstall.sh` at the repository root.
 
-## Source Of Truth
+## Repo context
 
-- Rust is the deployable implementation and the only supported source of truth.
-- The top-level `install.sh` and `uninstall.sh` manage the production deployment path.
+- Rust daemon for ASUS-style touchpad edges.
+- KDE Plasma 6 Wayland; Fedora 43 target.
+- Left edge volume; right edge brightness.
+- Swipe response: proportional, smooth, low CPU.
+- Read device-level (`libinput`/`evdev`), not X11.
+- Use touchpad size for edge detect.
+- Volume: D-Bus or `wpctl`. Brightness: PowerDevil D-Bus or `brightnessctl`.
+- Handle multi-device, sleep/wake, missing perms.
+- User-level setup only: `udev` + `systemd --user`, no root.
 
-## Correctness And Safety
+## Safety
 
-- Preserve least-privilege operation. The daemon must run as the normal desktop user, not as root.
-- Do not weaken the security model to gain convenience. Prefer targeted udev `uaccess`, temporary ACLs, and hardened user services over broad permissions or privileged execution.
-- Favor explicit errors over silent fallback. If touchpad access, `wpctl`, `qdbus`, `systemd`, or `udev` setup fails, surface a clear actionable error.
-- Avoid `unwrap`, `expect`, or panic-driven control flow in long-running daemon paths unless failure is truly unrecoverable and documented.
-- Do not introduce `unsafe` Rust unless it is unavoidable, tightly scoped, and justified in comments and review notes.
-- Preserve idempotence for install, uninstall, and test helper scripts.
-- Do not remove or overwrite user or system state that the installer did not create.
+- User-level only; never root.
+- Least privilege: `udev` `uaccess`, temp ACLs, hardened user services.
+- Fail loud on `touchpad`, `wpctl`, `qdbus`, `systemd`, `udev` setup.
+- No `unwrap`/`expect`/panic in daemon unless truly fatal.
+- Avoid `unsafe`; keep it narrow if unavoidable.
+- Install/uninstall/test helpers idempotent.
+- Do not touch state installer did not create.
 
-## Rust Engineering Rules
+## Rust
 
-- Prefer small, typed abstractions and `Result`-based error handling over ad hoc stringly control flow.
-- Keep modules cohesive. Push hardware, IPC, and shell interactions behind service boundaries when practical.
-- Validate edge cases around input devices, multi-touch state, missing dependencies, and permission failures.
-- When spawning external commands, keep arguments explicit and avoid shell-dependent behavior.
-- Maintain compatibility with the current service model: KDE Plasma, Wayland, `wpctl`, `qdbus`, `systemd --user`, and udev-based device access.
+- Small typed `Result` code.
+- Cohesive modules; hide hardware/IPC/shell behind services.
+- Cover input-device, multi-touch, missing-dep, permission edges.
+- External commands: explicit args, no shell tricks.
+- Keep KDE Plasma/Wayland/`wpctl`/`qdbus`/`systemd --user`/udev compat.
 
-## Installer And Uninstaller Contract
+## Deploy
 
-- Treat `install.sh` and `uninstall.sh` as a matched pair.
-- `uninstall.sh` must perform a clean teardown of everything `install.sh` adds or enables, and nothing unrelated.
-- If `install.sh` changes what it creates, copies, enables, or reloads, update `uninstall.sh` in the same change so teardown remains complete and correct.
-- Teardown must be safe to run repeatedly.
-- Migration cleanup is allowed only when it is deliberate and documented, such as removing a legacy rule path that the installer previously managed.
-- Keep README instructions aligned with the actual installer and uninstaller behavior.
+- `install.sh` + `uninstall.sh` are a pair.
+- If install create/copy/enable/reload, update uninstall same change.
+- Teardown safe to rerun.
+- Migration cleanup only when deliberate and documented.
+- Keep README synced.
 
-## Change Discipline
+## Change
 
-- Make the smallest change that fully solves the task.
-- Preserve existing hardening in service files unless there is a clear reason to change it.
-- If a change affects deployment, permissions, or teardown, update code, scripts, and docs together.
+- Smallest change that works.
+- Keep hardening unless clear reason.
+- If deploy/perm/teardown changes, update code, scripts, docs together.
 
 ## Validation
 
-- For Rust code changes, run at least `cargo fmt` and `cargo check` in the repository root unless the task prevents it.
-- Prefer adding or updating tests when behavior is subtle, stateful, or easy to regress.
-- If you cannot run validation, say so explicitly and explain the gap.
+- Run `cargo fmt` + `cargo check` for Rust unless blocked.
+- Add/update tests for subtle or stateful behavior.
+- If validation not run, say why.
 
 ## Git
 
-- If asked to do a git commit, always format the commit message according to the `git-semantic-commit-message` skill.
+- Commit messages must follow `git-semantic-commit-message`.

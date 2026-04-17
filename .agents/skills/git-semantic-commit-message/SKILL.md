@@ -1,7 +1,9 @@
 ---
 name: git-semantic-commit-message
-description: Generates descriptive, structured commit messages by analyzing git diffs or descriptions. Use when the user asks for help writing commit messages, wants to apply conventional commits, or provides staged changes for a repository.
-trigger: always_on
+description: >
+  Generates descriptive, structured commit messages by analyzing git diffs or descriptions.
+  Use when the user asks for help writing commit messages, wants to apply conventional commits,
+  or provides staged changes for a repository.
 ---
 
 # Semantic Commit Generator
