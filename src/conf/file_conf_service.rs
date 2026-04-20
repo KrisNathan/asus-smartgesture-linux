@@ -28,6 +28,10 @@ impl FileConfService {
     pub fn load_file(&mut self) -> Result<(), io::Error> {
         let content = match fs::read_to_string(&self.config_path) {
             Ok(c) => c,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                self.loaded_config = None;
+                return Ok(());
+            }
             Err(e) => {
                 return Err(e);
             }
@@ -74,6 +78,18 @@ mod tests {
         let conf = result.unwrap();
         assert_eq!(conf.left_edge_threshold_percent, 0.1);
         assert_eq!(conf.sensitivity, 0.5);
+    }
+
+    #[test]
+    fn test_missing_file_load_returns_ok() {
+        let (_temp_dir, mut service) = temp_conf_service();
+
+        let result = service.load_file();
+
+        assert!(result.is_ok());
+        assert!(service.loaded_config.is_none());
+        let conf = service.get_conf().unwrap();
+        assert_eq!(conf.left_edge_threshold_percent, 0.1);
     }
 
     #[test]
