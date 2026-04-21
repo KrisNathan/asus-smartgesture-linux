@@ -15,4 +15,8 @@ zbus = "5.14.0"
 tempfile = "3"
 
 [profile.release]
-debug = false # true for heaptrack analysis
+debug = false
+
+[profile.release-debug]
+inherits = "release"
+debug = true
