@@ -150,7 +150,8 @@ seek_step_microseconds = 5000000
             brightness_step: 0.12,
             seek_step_microseconds: 7_000_000,
         };
-        unreadable_service.save_conf(&conf).unwrap();
+        unreadable_service.loaded_config = Some(conf.clone());
+        unreadable_service.save_conf().unwrap();
 
         #[cfg(unix)]
         {
@@ -179,7 +180,12 @@ seek_step_microseconds = 5000000
             brightness_step: 0.12,
             seek_step_microseconds: 7_000_000,
         };
-        service.save_conf(&conf).unwrap();
+        service.loaded_config = Some(conf.clone());
+        service.save_conf().unwrap();
+
+        let cached = service.get_conf().unwrap();
+        assert_eq!(cached.left_edge_threshold_percent, 0.15);
+        assert_eq!(cached.sensitivity, 0.6);
 
         service.load_file().unwrap();
         let result = service.get_conf();
@@ -203,12 +209,15 @@ impl ConfService for FileConfService {
         }
     }
 
-    fn save_conf(&self, conf: &Conf) -> Result<(), Box<dyn std::error::Error>> {
+    fn save_conf(&self) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(parent) = self.config_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let content =
-            toml::to_string(conf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let conf = self
+            .loaded_config
+            .as_ref()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "missing loaded config"))?;
+        let content = toml::to_string(conf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         Ok(fs::write(&self.config_path, content)?)
     }
 }

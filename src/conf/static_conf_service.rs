@@ -33,7 +33,7 @@ impl ConfService for StaticConfService {
         Ok(&self.config)
     }
 
-    fn save_conf(&self, _conf: &super::Conf) -> Result<(), Box<dyn std::error::Error>> {
+    fn save_conf(&self) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
 }
