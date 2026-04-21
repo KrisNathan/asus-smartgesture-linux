@@ -217,7 +217,8 @@ impl ConfService for FileConfService {
             .loaded_config
             .as_ref()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "missing loaded config"))?;
-        let content = toml::to_string(conf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let content =
+            toml::to_string(conf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         Ok(fs::write(&self.config_path, content)?)
     }
 }
