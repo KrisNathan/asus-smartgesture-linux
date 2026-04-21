@@ -36,29 +36,4 @@ impl ConfService for StaticConfService {
     fn save_conf(&self, _conf: &super::Conf) -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
-
-    fn get_left_edge_threshold_percent(&self) -> f64 {
-        LEFT_EDGE_THRESHOLD_PERCENT
-    }
-    fn get_right_edge_threshold_percent(&self) -> f64 {
-        RIGHT_EDGE_THRESHOLD_PERCENT
-    }
-    fn get_top_edge_threshold_percent(&self) -> f64 {
-        TOP_EDGE_THRESHOLD_PERCENT
-    }
-    fn get_sensitivity(&self) -> f64 {
-        SENSITIVITY
-    }
-    fn get_invert_y(&self) -> bool {
-        INVERT_Y
-    }
-    fn get_volume_step(&self) -> f64 {
-        VOLUME_STEP
-    }
-    fn get_brightness_step(&self) -> f64 {
-        BRIGHTNESS_STEP
-    }
-    fn get_seek_step_microseconds(&self) -> i64 {
-        SEEK_STEP_MICROSECONDS
-    }
 }
