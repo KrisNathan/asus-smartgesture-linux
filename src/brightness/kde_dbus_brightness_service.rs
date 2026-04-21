@@ -1,4 +1,4 @@
-use std::{env, process::Command};
+use std::{cell::Cell, env, process::Command};
 
 use zbus::{
     blocking::{Connection, connection::Builder},
@@ -10,6 +10,7 @@ use crate::brightness::BrightnessService;
 pub struct KDEQDBusBrightnessService<'a> {
     conn: Connection,
     proxy: KDEPowerManagementProxyBlocking<'a>,
+    brightness_max: Cell<Option<i32>>,
 }
 
 #[proxy(
@@ -44,12 +45,24 @@ impl BrightnessService for KDEQDBusBrightnessService<'_> {
 
         let proxy = KDEPowerManagementProxyBlocking::new(&conn)?;
 
-        Ok(KDEQDBusBrightnessService { conn, proxy })
+        Ok(KDEQDBusBrightnessService {
+            conn,
+            proxy,
+            brightness_max: Cell::new(None),
+        })
     }
 
     fn adjust_brightness(&self, delta: &f64) -> Result<(), Box<dyn std::error::Error>> {
+        let max_brightness = match self.brightness_max.get() {
+            Some(max) => max,
+            None => {
+                let max = self.proxy.brightness_max()?;
+                self.brightness_max.set(Some(max));
+                max
+            }
+        };
+
         let current_brightness = self.proxy.brightness()?;
-        let max_brightness = self.proxy.brightness_max()?;
 
         let delta_rounded = (delta * max_brightness as f64).round() as i32;
 

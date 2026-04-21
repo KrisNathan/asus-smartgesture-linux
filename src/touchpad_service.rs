@@ -1,6 +1,7 @@
 use evdev::{AbsoluteAxisCode, Device, EventSummary, KeyCode};
 use std::collections::HashMap;
 use std::os::unix::io::{AsFd, BorrowedFd};
+use std::time::{Duration, Instant};
 
 use crate::debug_log;
 use crate::{
@@ -10,6 +11,8 @@ use crate::{
     logging::debug_enabled,
     media::MediaService,
 };
+
+const MIN_SERVICE_CALL_INTERVAL: Duration = Duration::from_millis(50);
 
 enum TouchpadActionMode {
     Volume,
@@ -177,6 +180,10 @@ where
     accumulated_delta_volume: f64,
     accumulated_delta_brightness: f64,
     accumulated_delta_media: f64,
+
+    last_volume_call: Option<Instant>,
+    last_brightness_call: Option<Instant>,
+    last_media_call: Option<Instant>,
 }
 
 impl<'a, CS, AS, BS, MS> TouchpadService<'a, CS, AS, BS, MS>
@@ -186,6 +193,17 @@ where
     BS: BrightnessService,
     MS: MediaService,
 {
+    fn check_rate_limit(last_call: &mut Option<Instant>) -> bool {
+        let now = Instant::now();
+        if let Some(last) = *last_call
+            && now.duration_since(last) < MIN_SERVICE_CALL_INTERVAL
+        {
+            return false;
+        }
+        *last_call = Some(now);
+        true
+    }
+
     pub fn new(
         conf: &'a CS,
         audio_service: &'a AS,
@@ -208,6 +226,9 @@ where
             accumulated_delta_volume: 0.0,
             accumulated_delta_brightness: 0.0,
             accumulated_delta_media: 0.0,
+            last_volume_call: None,
+            last_brightness_call: None,
+            last_media_call: None,
         })
     }
 
@@ -364,9 +385,10 @@ where
                                             as i32;
                                         let rounded_delta = volume_steps as f64 * conf.volume_step;
 
-                                        self.audio_service.adjust_volume(&rounded_delta)?;
-
-                                        self.accumulated_delta_volume -= rounded_delta;
+                                        if Self::check_rate_limit(&mut self.last_volume_call) {
+                                            self.audio_service.adjust_volume(&rounded_delta)?;
+                                            self.accumulated_delta_volume -= rounded_delta;
+                                        }
                                     }
                                 }
                                 touch.last_y = Some(y);
@@ -391,11 +413,11 @@ where
                                         let rounded_delta =
                                             brightness_steps as f64 * conf.brightness_step;
 
-                                        // TODO: brightness service
-                                        self.brightness_service
-                                            .adjust_brightness(&rounded_delta)?;
-
-                                        self.accumulated_delta_brightness -= rounded_delta;
+                                        if Self::check_rate_limit(&mut self.last_brightness_call) {
+                                            self.brightness_service
+                                                .adjust_brightness(&rounded_delta)?;
+                                            self.accumulated_delta_brightness -= rounded_delta;
+                                        }
                                     }
                                 }
                                 touch.last_y = Some(y);
@@ -416,10 +438,12 @@ where
                                             -1 // Left swipe = backward
                                         };
 
-                                        let seek_offset = direction * conf.seek_step_microseconds;
-                                        self.media_service.seek(seek_offset)?;
-
-                                        self.accumulated_delta_media = 0.0;
+                                        if Self::check_rate_limit(&mut self.last_media_call) {
+                                            let seek_offset =
+                                                direction * conf.seek_step_microseconds;
+                                            self.media_service.seek(seek_offset)?;
+                                            self.accumulated_delta_media = 0.0;
+                                        }
                                     }
                                 }
                                 if let Some(current_x) = touch.x {
