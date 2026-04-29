@@ -1,5 +1,18 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MediaControlMode {
+    MprisSeek,
+    ArrowKeys,
+}
+
+impl Default for MediaControlMode {
+    fn default() -> Self {
+        Self::MprisSeek
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Conf {
     pub left_edge_threshold_percent: f64,
@@ -10,4 +23,6 @@ pub struct Conf {
     pub volume_step: f64,
     pub brightness_step: f64,
     pub seek_step_microseconds: i64,
+    #[serde(default)]
+    pub media_control_mode: MediaControlMode,
 }

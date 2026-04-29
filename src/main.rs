@@ -5,10 +5,10 @@ mod brightness;
 use brightness::{BrightnessService, KDEQDBusBrightnessService};
 
 mod media;
-use media::{MediaService, MprisMediaService};
+use media::MediaControlService;
 
 mod conf;
-use conf::FileConfService;
+use conf::{ConfService, FileConfService};
 
 mod logging;
 mod touchpad_service;
@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     conf_service.load_file()?;
     let audio_service = WpctlAudioService::new();
     let brightness_service = KDEQDBusBrightnessService::new()?;
-    let media_service = MprisMediaService::new()?;
+    let media_service = MediaControlService::new(conf_service.get_conf()?.media_control_mode)?;
 
     let mut touchpad_service = touchpad_service::TouchpadService::new(
         &conf_service,

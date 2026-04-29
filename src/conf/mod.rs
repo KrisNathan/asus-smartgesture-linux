@@ -1,5 +1,5 @@
 mod config;
-pub use config::Conf;
+pub use config::{Conf, MediaControlMode};
 
 mod conf_service;
 pub use conf_service::ConfService;

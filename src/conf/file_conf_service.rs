@@ -56,6 +56,7 @@ impl FileConfService {
 #[cfg(test)]
 mod tests {
     use super::{ConfService, FileConfService};
+    use crate::conf::MediaControlMode;
     use std::fs;
     use std::io;
     use tempfile::TempDir;
@@ -104,6 +105,7 @@ invert_y = true
 volume_step = 0.1
 brightness_step = 0.15
 seek_step_microseconds = 5000000
+media_control_mode = "arrow_keys"
 "#;
         fs::write(&service.config_path, toml_content).unwrap();
 
@@ -120,6 +122,30 @@ seek_step_microseconds = 5000000
         assert_eq!(conf.volume_step, 0.1);
         assert_eq!(conf.brightness_step, 0.15);
         assert_eq!(conf.seek_step_microseconds, 5_000_000);
+        assert_eq!(conf.media_control_mode, MediaControlMode::ArrowKeys);
+    }
+
+    #[test]
+    fn test_missing_media_control_mode_uses_default() {
+        let (temp_dir, mut service) = temp_conf_service();
+        let toml_content = r#"
+left_edge_threshold_percent = 0.2
+right_edge_threshold_percent = 0.8
+top_edge_threshold_percent = 0.15
+sensitivity = 0.7
+invert_y = true
+volume_step = 0.1
+brightness_step = 0.15
+seek_step_microseconds = 5000000
+"#;
+        fs::write(&service.config_path, toml_content).unwrap();
+
+        service.load_file().unwrap();
+        let result = service.get_conf();
+        drop(temp_dir);
+        assert!(result.is_ok());
+        let conf = result.unwrap();
+        assert_eq!(conf.media_control_mode, MediaControlMode::MprisSeek);
     }
 
     #[test]
@@ -149,6 +175,7 @@ seek_step_microseconds = 5000000
             volume_step: 0.08,
             brightness_step: 0.12,
             seek_step_microseconds: 7_000_000,
+            media_control_mode: MediaControlMode::MprisSeek,
         };
         unreadable_service.loaded_config = Some(conf.clone());
         unreadable_service.save_conf().unwrap();
@@ -179,6 +206,7 @@ seek_step_microseconds = 5000000
             volume_step: 0.08,
             brightness_step: 0.12,
             seek_step_microseconds: 7_000_000,
+            media_control_mode: MediaControlMode::MprisSeek,
         };
         service.loaded_config = Some(conf.clone());
         service.save_conf().unwrap();

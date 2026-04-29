@@ -4,7 +4,7 @@ Rust implementation of the touchpad gesture daemon for KDE Plasma.
 
 ## Temporary Touchpad Access
 
-For MVP testing, run the daemon as your normal desktop user and grant temporary read access to the touchpad event device with [test.sh](./test.sh).
+For MVP testing, run the daemon as your normal desktop user and grant temporary device access with [test.sh](./test.sh).
 
 This avoids permanent system changes such as udev rules or group membership changes.
 
@@ -20,7 +20,7 @@ This avoids permanent system changes such as udev rules or group membership chan
 ./test.sh grant
 ```
 
-This uses `setfacl` to grant your user read access to the detected `/dev/input/event*` device.
+This uses `setfacl` to grant your user read access to the detected `/dev/input/event*` device. If `/dev/uinput` exists, it also grants read/write access for arrow-key media mode.
 
 ### Run the daemon
 
@@ -44,7 +44,7 @@ Or:
 
 ## Notes
 
-- The ACL change is temporary and easy to undo with `./test.sh revoke`.
+- The ACL changes are temporary and easy to undo with `./test.sh revoke`.
 - If the touchpad device is recreated, you may need to run `./test.sh grant` again.
 - `test.sh` auto-detects the first input device whose name contains `touchpad`.
 
@@ -65,6 +65,7 @@ invert_y = false
 volume_step = 0.05
 brightness_step = 0.05
 seek_step_microseconds = 10000000
+media_control_mode = "mpris_seek"
 ```
 
 ### Fields
@@ -77,21 +78,23 @@ seek_step_microseconds = 10000000
 - `volume_step`: Volume change per gesture step (0.0 to 1.0)
 - `brightness_step`: Brightness change per gesture step (0.0 to 1.0)
 - `seek_step_microseconds`: Media seek step in microseconds (default: 10,000,000 = 10 seconds)
+- `media_control_mode`: Media gesture backend, either `mpris_seek` or `arrow_keys` (default: `mpris_seek`)
 
 If the config file is missing, built-in defaults are used. If the file exists but contains invalid TOML or cannot be parsed, the daemon returns an error indicating the config path and failure reason.
 
 ## Media Seek Gestures
 
-The daemon supports media playback control via top-edge horizontal swipe gestures when an MPRIS-compatible media player is running (e.g., Brave, Firefox, VLC, Spotify).
+The daemon supports media playback control via top-edge horizontal swipe gestures. By default it uses MPRIS seek calls when an MPRIS-compatible media player is running (e.g., Brave, Firefox, VLC, Spotify). Set `media_control_mode = "arrow_keys"` to emulate left/right arrow key taps instead.
 
 ### Usage
 
-- **Swipe right on top edge**: Seek forward by the configured step amount
-- **Swipe left on top edge**: Seek backward by the configured step amount
+- **Swipe right on top edge**: Seek forward by the configured step amount, or tap right arrow in arrow-key mode
+- **Swipe left on top edge**: Seek backward by the configured step amount, or tap left arrow in arrow-key mode
 
 ### Requirements
 
 - An MPRIS-compatible media player must be running
+- Arrow-key mode requires read/write access to `/dev/uinput`
 - Only single-finger gestures trigger media seek (multi-finger swipes are ignored)
 - The gesture must start within the top edge zone (configurable via `top_edge_threshold_percent`)
 
@@ -103,6 +106,9 @@ top_edge_threshold_percent = 0.1
 
 # Seek 10 seconds per gesture (10,000,000 microseconds)
 seek_step_microseconds = 10000000
+
+# Or emulate left/right arrow keys instead of MPRIS seek
+media_control_mode = "arrow_keys"
 ```
 
 ## User Service

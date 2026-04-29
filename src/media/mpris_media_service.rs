@@ -13,25 +13,6 @@ pub struct MprisMediaService {
 }
 
 impl MediaService for MprisMediaService {
-    fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let conn = if let Ok(sudo_user) = env::var("SUDO_USER") {
-            let uid_output = Command::new("id").args(["-u", &sudo_user]).output()?;
-            let uid = String::from_utf8_lossy(&uid_output.stdout)
-                .trim()
-                .to_owned();
-            let address = format!("unix:path=/run/user/{uid}/bus");
-
-            Builder::address(address.as_str())?.build()?
-        } else {
-            Connection::session()?
-        };
-
-        Ok(MprisMediaService {
-            conn,
-            cached_player: RefCell::new(None),
-        })
-    }
-
     fn seek(&self, offset_microseconds: i64) -> Result<(), Box<dyn std::error::Error>> {
         // Try cached player first to avoid ListNames overhead
         if let Some(ref player_name) = *self.cached_player.borrow() {
@@ -63,6 +44,25 @@ impl MediaService for MprisMediaService {
 }
 
 impl MprisMediaService {
+    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+        let conn = if let Ok(sudo_user) = env::var("SUDO_USER") {
+            let uid_output = Command::new("id").args(["-u", &sudo_user]).output()?;
+            let uid = String::from_utf8_lossy(&uid_output.stdout)
+                .trim()
+                .to_owned();
+            let address = format!("unix:path=/run/user/{uid}/bus");
+
+            Builder::address(address.as_str())?.build()?
+        } else {
+            Connection::session()?
+        };
+
+        Ok(MprisMediaService {
+            conn,
+            cached_player: RefCell::new(None),
+        })
+    }
+
     /// Performs the actual Seek D-Bus call.
     fn try_seek(
         &self,

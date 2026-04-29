@@ -1,4 +1,4 @@
-use super::ConfService;
+use super::{ConfService, MediaControlMode};
 
 static LEFT_EDGE_THRESHOLD_PERCENT: f64 = 0.1;
 static RIGHT_EDGE_THRESHOLD_PERCENT: f64 = 0.9;
@@ -8,6 +8,7 @@ static INVERT_Y: bool = false;
 static VOLUME_STEP: f64 = 0.05;
 static BRIGHTNESS_STEP: f64 = 0.05;
 static SEEK_STEP_MICROSECONDS: i64 = 10_000_000;
+static MEDIA_CONTROL_MODE: MediaControlMode = MediaControlMode::MprisSeek;
 
 pub struct StaticConfService {
     config: super::Conf,
@@ -25,6 +26,7 @@ impl ConfService for StaticConfService {
                 volume_step: VOLUME_STEP,
                 brightness_step: BRIGHTNESS_STEP,
                 seek_step_microseconds: SEEK_STEP_MICROSECONDS,
+                media_control_mode: MEDIA_CONTROL_MODE,
             },
         }
     }

@@ -31,8 +31,8 @@ Usage:
   ./test.sh revoke [user]
 
 Actions:
-  status  Show the detected touchpad event device and current ACLs
-  grant   Temporarily grant read access to the touchpad event device
+  status  Show detected device ACLs
+  grant   Temporarily grant touchpad read and uinput read/write access
   revoke  Remove the temporary ACL for the user
 EOF
 }
@@ -50,16 +50,33 @@ case "$ACTION" in
         echo "Touchpad device: $DEVICE_PATH"
         echo "Touchpad name: $(<"/sys/class/input/$EVENT_NAME/device/name")"
         getfacl -p "$DEVICE_PATH"
+        if [[ -e /dev/uinput ]]; then
+            echo
+            echo "uinput device: /dev/uinput"
+            getfacl -p /dev/uinput
+        fi
         ;;
     grant)
         echo "Granting temporary read access on $DEVICE_PATH to user '$TARGET_USER'..."
         sudo setfacl -m "u:$TARGET_USER:r" "$DEVICE_PATH"
         getfacl -p "$DEVICE_PATH"
+        if [[ -e /dev/uinput ]]; then
+            echo "Granting temporary read/write access on /dev/uinput to user '$TARGET_USER'..."
+            sudo setfacl -m "u:$TARGET_USER:rw" /dev/uinput
+            getfacl -p /dev/uinput
+        else
+            echo "Warning: /dev/uinput was not found. Arrow-key mode will not start." >&2
+        fi
         ;;
     revoke)
         echo "Revoking temporary read access on $DEVICE_PATH from user '$TARGET_USER'..."
         sudo setfacl -x "u:$TARGET_USER" "$DEVICE_PATH"
         getfacl -p "$DEVICE_PATH"
+        if [[ -e /dev/uinput ]]; then
+            echo "Revoking temporary read/write access on /dev/uinput from user '$TARGET_USER'..."
+            sudo setfacl -x "u:$TARGET_USER" /dev/uinput || true
+            getfacl -p /dev/uinput
+        fi
         ;;
     -h|--help|help)
         print_usage

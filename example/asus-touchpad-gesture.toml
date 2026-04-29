@@ -70,3 +70,8 @@ brightness_step = 0.05
 # 10_000_000 microseconds = 10 seconds. Only used when a media player
 # supporting MPRIS (e.g., VLC, Firefox, Spotify) is active.
 seek_step_microseconds = 10000000
+
+# Media control mode ("mpris_seek" or "arrow_keys")
+# - "mpris_seek": Send MPRIS Seek calls to active media players.
+# - "arrow_keys": Emulate left/right arrow key taps via /dev/uinput.
+media_control_mode = "mpris_seek"

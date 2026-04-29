@@ -1,3 +1,6 @@
 # Grant the active local desktop session access to touchpad event devices.
 # This must run before systemd's seat rules so TAG+="uaccess" results in an ACL.
 KERNEL=="event*", SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHPAD}=="1", TAG+="uaccess"
+
+# Optional arrow-key media mode needs a virtual keyboard through uinput.
+KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess"
