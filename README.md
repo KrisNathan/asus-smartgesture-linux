@@ -64,7 +64,7 @@ sensitivity = 0.5
 invert_y = false
 volume_step = 0.05
 brightness_step = 0.05
-media_step = 0.1
+media_step = 0.05
 seek_step_microseconds = 10000000
 media_control_mode = "mpris_seek"
 ```
