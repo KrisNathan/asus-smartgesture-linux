@@ -7,7 +7,7 @@ static SENSITIVITY: f64 = 0.5;
 static INVERT_Y: bool = false;
 static VOLUME_STEP: f64 = 0.05;
 static BRIGHTNESS_STEP: f64 = 0.05;
-static MEDIA_STEP: f64 = 0.1;
+static MEDIA_STEP: f64 = 0.05;
 static SEEK_STEP_MICROSECONDS: i64 = 10_000_000;
 static MEDIA_CONTROL_MODE: MediaControlMode = MediaControlMode::MprisSeek;
 
