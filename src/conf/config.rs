@@ -1,20 +1,15 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MediaControlMode {
+    #[default]
     MprisSeek,
     ArrowKeys,
 }
 
-impl Default for MediaControlMode {
-    fn default() -> Self {
-        Self::MprisSeek
-    }
-}
-
 fn default_media_step() -> f64 {
-    0.1
+    0.05
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
