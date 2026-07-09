@@ -147,7 +147,7 @@ seek_step_microseconds = 5000000
         drop(temp_dir);
         assert!(result.is_ok());
         let conf = result.unwrap();
-        assert_eq!(conf.media_step, 0.1);
+        assert_eq!(conf.media_step, 0.05);
         assert_eq!(conf.media_control_mode, MediaControlMode::MprisSeek);
     }
 

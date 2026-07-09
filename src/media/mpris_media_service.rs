@@ -14,6 +14,10 @@ pub struct MprisMediaService {
 
 impl MediaService for MprisMediaService {
     fn seek(&self, offset_microseconds: i64) -> Result<(), Box<dyn std::error::Error>> {
+        if offset_microseconds == 0 {
+            return Ok(());
+        }
+
         // Try cached player first to avoid ListNames overhead
         if let Some(ref player_name) = *self.cached_player.borrow() {
             if self.try_seek(player_name, offset_microseconds).is_ok() {

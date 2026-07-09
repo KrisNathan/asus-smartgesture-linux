@@ -7,11 +7,10 @@ use crate::media::MediaService;
 
 pub struct ArrowKeyMediaService {
     device: RefCell<VirtualDevice>,
-    seek_step_microseconds: i64,
 }
 
 impl ArrowKeyMediaService {
-    pub fn new(seek_step_microseconds: i64) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let keys = AttributeSet::from_iter([KeyCode::KEY_LEFT, KeyCode::KEY_RIGHT]);
         let device = VirtualDevice::builder()?
             .name("ASUS Touchpad Media Arrow Keys")
@@ -20,7 +19,6 @@ impl ArrowKeyMediaService {
 
         Ok(Self {
             device: RefCell::new(device),
-            seek_step_microseconds,
         })
     }
 
@@ -38,21 +36,18 @@ impl ArrowKeyMediaService {
 
 impl MediaService for ArrowKeyMediaService {
     fn seek(&self, offset_microseconds: i64) -> Result<(), Box<dyn std::error::Error>> {
-        let key = if offset_microseconds >= 0 {
+        // Sign-only: one tap per call. Magnitude is ignored; touchpad fires
+        // once per media_step so swipe distance still scales tap count.
+        if offset_microseconds == 0 {
+            return Ok(());
+        }
+
+        let key = if offset_microseconds > 0 {
             KeyCode::KEY_RIGHT
         } else {
             KeyCode::KEY_LEFT
         };
 
-        let taps = if self.seek_step_microseconds == 0 {
-            1
-        } else {
-            (offset_microseconds.unsigned_abs() / self.seek_step_microseconds.unsigned_abs()).max(1)
-        };
-
-        for _ in 0..taps {
-            self.tap_key(key)?;
-        }
-        Ok(())
+        self.tap_key(key)
     }
 }

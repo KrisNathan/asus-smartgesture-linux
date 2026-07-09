@@ -23,7 +23,8 @@ enum TouchpadActionMode {
 enum PendingAction {
     Volume(f64),
     Brightness(f64),
-    Media(i64),
+    /// Pad travel cleared for one media_step (same units as the accumulator).
+    Media(f64),
 }
 
 #[derive(Clone, Copy)]
@@ -283,6 +284,12 @@ where
     }
 
     fn apply_pending(&mut self, pending: Vec<PendingAction>) {
+        let seek_step_microseconds = self
+            .conf
+            .get_conf()
+            .map(|conf| conf.seek_step_microseconds)
+            .unwrap_or(0);
+
         for action in pending {
             match action {
                 PendingAction::Volume(delta) => {
@@ -297,10 +304,15 @@ where
                         self.accumulated_delta_brightness += delta;
                     }
                 }
-                PendingAction::Media(seek_offset) => {
+                PendingAction::Media(delta) => {
+                    let seek_offset = if delta > 0.0 {
+                        seek_step_microseconds
+                    } else {
+                        -seek_step_microseconds
+                    };
                     if let Err(error) = self.media_service.seek(seek_offset) {
                         eprintln!("media seek failed: {error}");
-                        self.accumulated_delta_media += seek_offset as f64;
+                        self.accumulated_delta_media += delta;
                     }
                 }
             }
@@ -503,26 +515,26 @@ where
                                     let fractional_dx = dx as f64 / bounds.width() as f64;
                                     let adjusted_dx = fractional_dx * conf.sensitivity;
 
-                                    // Convert pad travel into seek microseconds so the
-                                    // accumulator and pending value match the IPC units,
-                                    // same pattern as volume/brightness.
-                                    if conf.media_step > 0.0 {
-                                        self.accumulated_delta_media += (adjusted_dx
-                                            / conf.media_step)
-                                            * conf.seek_step_microseconds as f64;
-                                    }
-
-                                    let seek_step = conf.seek_step_microseconds as f64;
-                                    if seek_step > 0.0
-                                        && self.accumulated_delta_media.abs() >= seek_step
+                                    // Accumulate pad travel like volume/brightness. Each
+                                    // media_step fires one unit seek (MPRIS: seek_step
+                                    // microseconds; arrow: one tap). seek_step == 0 disables.
+                                    self.accumulated_delta_media += adjusted_dx;
+                                    if conf.media_step > 0.0
+                                        && conf.seek_step_microseconds != 0
+                                        && self.accumulated_delta_media.abs() >= conf.media_step
                                     {
                                         let media_steps =
-                                            (self.accumulated_delta_media / seek_step) as i64;
-                                        let seek_offset = media_steps * conf.seek_step_microseconds;
+                                            (self.accumulated_delta_media / conf.media_step) as i64;
+                                        let rounded_delta = media_steps as f64 * conf.media_step;
 
                                         if Self::check_rate_limit(&mut self.last_media_call) {
-                                            pending.push(PendingAction::Media(seek_offset));
-                                            self.accumulated_delta_media -= seek_offset as f64;
+                                            // One pending action per media_step so arrow
+                                            // mode stays one tap per call.
+                                            let step = conf.media_step.copysign(rounded_delta);
+                                            for _ in 0..media_steps.unsigned_abs() {
+                                                pending.push(PendingAction::Media(step));
+                                            }
+                                            self.accumulated_delta_media -= rounded_delta;
                                         }
                                     }
                                 }
