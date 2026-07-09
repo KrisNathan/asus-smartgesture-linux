@@ -13,6 +13,10 @@ impl Default for MediaControlMode {
     }
 }
 
+fn default_media_step() -> f64 {
+    0.1
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Conf {
     pub left_edge_threshold_percent: f64,
@@ -22,6 +26,9 @@ pub struct Conf {
     pub invert_y: bool,
     pub volume_step: f64,
     pub brightness_step: f64,
+    /// Pad-fraction of horizontal travel that triggers one media seek step.
+    #[serde(default = "default_media_step")]
+    pub media_step: f64,
     pub seek_step_microseconds: i64,
     #[serde(default)]
     pub media_control_mode: MediaControlMode,

@@ -65,13 +65,20 @@ volume_step = 0.05
 # change per step. Adjust based on your display's brightness curve.
 brightness_step = 0.05
 
+# Media step size (0.0 to 1.0)
+# Fraction of touchpad width that triggers one media seek step. 0.1 means each
+# 10% of horizontal travel seeks by seek_step_microseconds (or one arrow tap).
+# Longer swipes fire multiple steps, like volume/brightness.
+media_step = 0.05
+
 # Media seek step in microseconds (0 to 60000000)
-# The amount of time to seek forward/backward when using top edge gestures.
+# The amount of time to seek forward/backward per media_step of travel.
 # 10_000_000 microseconds = 10 seconds. Only used when a media player
 # supporting MPRIS (e.g., VLC, Firefox, Spotify) is active.
 seek_step_microseconds = 10000000
 
 # Media control mode ("mpris_seek" or "arrow_keys")
 # - "mpris_seek": Send MPRIS Seek calls to active media players.
-# - "arrow_keys": Emulate left/right arrow key taps via /dev/uinput.
+# - "arrow_keys": Emulate left/right arrow key taps via /dev/uinput
+#   (one tap per media_step of travel).
 media_control_mode = "mpris_seek"

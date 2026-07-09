@@ -104,6 +104,7 @@ sensitivity = 0.7
 invert_y = true
 volume_step = 0.1
 brightness_step = 0.15
+media_step = 0.2
 seek_step_microseconds = 5000000
 media_control_mode = "arrow_keys"
 "#;
@@ -121,12 +122,13 @@ media_control_mode = "arrow_keys"
         assert!(conf.invert_y);
         assert_eq!(conf.volume_step, 0.1);
         assert_eq!(conf.brightness_step, 0.15);
+        assert_eq!(conf.media_step, 0.2);
         assert_eq!(conf.seek_step_microseconds, 5_000_000);
         assert_eq!(conf.media_control_mode, MediaControlMode::ArrowKeys);
     }
 
     #[test]
-    fn test_missing_media_control_mode_uses_default() {
+    fn test_missing_media_fields_use_defaults() {
         let (temp_dir, mut service) = temp_conf_service();
         let toml_content = r#"
 left_edge_threshold_percent = 0.2
@@ -145,6 +147,7 @@ seek_step_microseconds = 5000000
         drop(temp_dir);
         assert!(result.is_ok());
         let conf = result.unwrap();
+        assert_eq!(conf.media_step, 0.1);
         assert_eq!(conf.media_control_mode, MediaControlMode::MprisSeek);
     }
 
@@ -174,6 +177,7 @@ seek_step_microseconds = 5000000
             invert_y: true,
             volume_step: 0.08,
             brightness_step: 0.12,
+            media_step: 0.1,
             seek_step_microseconds: 7_000_000,
             media_control_mode: MediaControlMode::MprisSeek,
         };
@@ -205,6 +209,7 @@ seek_step_microseconds = 5000000
             invert_y: true,
             volume_step: 0.08,
             brightness_step: 0.12,
+            media_step: 0.1,
             seek_step_microseconds: 7_000_000,
             media_control_mode: MediaControlMode::MprisSeek,
         };

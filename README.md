@@ -64,6 +64,7 @@ sensitivity = 0.5
 invert_y = false
 volume_step = 0.05
 brightness_step = 0.05
+media_step = 0.1
 seek_step_microseconds = 10000000
 media_control_mode = "mpris_seek"
 ```
@@ -77,19 +78,20 @@ media_control_mode = "mpris_seek"
 - `invert_y`: Invert vertical gesture direction
 - `volume_step`: Volume change per gesture step (0.0 to 1.0)
 - `brightness_step`: Brightness change per gesture step (0.0 to 1.0)
-- `seek_step_microseconds`: Media seek step in microseconds (default: 10,000,000 = 10 seconds)
+- `media_step`: Fraction of touchpad width that triggers one media seek step (0.0 to 1.0; default 0.1)
+- `seek_step_microseconds`: Media seek amount per `media_step` of travel, in microseconds (default: 10,000,000 = 10 seconds)
 - `media_control_mode`: Media gesture backend, either `mpris_seek` or `arrow_keys` (default: `mpris_seek`)
 
 If the config file is missing, built-in defaults are used. If the file exists but contains invalid TOML or cannot be parsed, the daemon returns an error indicating the config path and failure reason.
 
 ## Media Seek Gestures
 
-The daemon supports media playback control via top-edge horizontal swipe gestures. By default it uses MPRIS seek calls when an MPRIS-compatible media player is running (e.g., Brave, Firefox, VLC, Spotify). Set `media_control_mode = "arrow_keys"` to emulate left/right arrow key taps instead.
+The daemon supports media playback control via top-edge horizontal swipe gestures. By default it uses MPRIS seek calls when an MPRIS-compatible media player is running (e.g., Brave, Firefox, VLC, Spotify). Set `media_control_mode = "arrow_keys"` to emulate left/right arrow key taps instead. Seek amount scales with swipe distance: each `media_step` of horizontal travel seeks by `seek_step_microseconds` (or one arrow tap).
 
 ### Usage
 
-- **Swipe right on top edge**: Seek forward by the configured step amount, or tap right arrow in arrow-key mode
-- **Swipe left on top edge**: Seek backward by the configured step amount, or tap left arrow in arrow-key mode
+- **Swipe right on top edge**: Seek forward proportionally to travel distance, or tap right arrow once per `media_step` in arrow-key mode
+- **Swipe left on top edge**: Seek backward proportionally to travel distance, or tap left arrow once per `media_step` in arrow-key mode
 
 ### Requirements
 
@@ -104,7 +106,8 @@ The daemon supports media playback control via top-edge horizontal swipe gesture
 # Top 10% of touchpad height triggers media seek
 top_edge_threshold_percent = 0.1
 
-# Seek 10 seconds per gesture (10,000,000 microseconds)
+# Each 10% of horizontal travel seeks 10 seconds
+media_step = 0.1
 seek_step_microseconds = 10000000
 
 # Or emulate left/right arrow keys instead of MPRIS seek

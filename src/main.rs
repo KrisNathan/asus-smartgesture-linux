@@ -25,7 +25,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     conf_service.load_file()?;
     let audio_service = WpctlAudioService::new();
     let brightness_service = KDEQDBusBrightnessService::new()?;
-    let media_service = MediaControlService::new(conf_service.get_conf()?.media_control_mode)?;
+    let conf = conf_service.get_conf()?;
+    let media_service =
+        MediaControlService::new(conf.media_control_mode, conf.seek_step_microseconds)?;
 
     let mut touchpad_service = touchpad_service::TouchpadService::new(
         &conf_service,

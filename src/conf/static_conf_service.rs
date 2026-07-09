@@ -7,6 +7,7 @@ static SENSITIVITY: f64 = 0.5;
 static INVERT_Y: bool = false;
 static VOLUME_STEP: f64 = 0.05;
 static BRIGHTNESS_STEP: f64 = 0.05;
+static MEDIA_STEP: f64 = 0.1;
 static SEEK_STEP_MICROSECONDS: i64 = 10_000_000;
 static MEDIA_CONTROL_MODE: MediaControlMode = MediaControlMode::MprisSeek;
 
@@ -25,6 +26,7 @@ impl ConfService for StaticConfService {
                 invert_y: INVERT_Y,
                 volume_step: VOLUME_STEP,
                 brightness_step: BRIGHTNESS_STEP,
+                media_step: MEDIA_STEP,
                 seek_step_microseconds: SEEK_STEP_MICROSECONDS,
                 media_control_mode: MEDIA_CONTROL_MODE,
             },

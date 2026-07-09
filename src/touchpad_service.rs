@@ -23,10 +23,7 @@ enum TouchpadActionMode {
 enum PendingAction {
     Volume(f64),
     Brightness(f64),
-    Media {
-        seek_offset: i64,
-        cleared_delta: f64,
-    },
+    Media(i64),
 }
 
 #[derive(Clone, Copy)]
@@ -300,13 +297,10 @@ where
                         self.accumulated_delta_brightness += delta;
                     }
                 }
-                PendingAction::Media {
-                    seek_offset,
-                    cleared_delta,
-                } => {
+                PendingAction::Media(seek_offset) => {
                     if let Err(error) = self.media_service.seek(seek_offset) {
                         eprintln!("media seek failed: {error}");
-                        self.accumulated_delta_media += cleared_delta;
+                        self.accumulated_delta_media += seek_offset as f64;
                     }
                 }
             }
@@ -509,24 +503,26 @@ where
                                     let fractional_dx = dx as f64 / bounds.width() as f64;
                                     let adjusted_dx = fractional_dx * conf.sensitivity;
 
-                                    self.accumulated_delta_media += adjusted_dx;
-                                    if self.accumulated_delta_media.abs() >= 0.1 {
-                                        // Trigger seek after 10% horizontal movement
-                                        let direction = if self.accumulated_delta_media > 0.0 {
-                                            1 // Right swipe = forward
-                                        } else {
-                                            -1 // Left swipe = backward
-                                        };
+                                    // Convert pad travel into seek microseconds so the
+                                    // accumulator and pending value match the IPC units,
+                                    // same pattern as volume/brightness.
+                                    if conf.media_step > 0.0 {
+                                        self.accumulated_delta_media += (adjusted_dx
+                                            / conf.media_step)
+                                            * conf.seek_step_microseconds as f64;
+                                    }
+
+                                    let seek_step = conf.seek_step_microseconds as f64;
+                                    if seek_step > 0.0
+                                        && self.accumulated_delta_media.abs() >= seek_step
+                                    {
+                                        let media_steps =
+                                            (self.accumulated_delta_media / seek_step) as i64;
+                                        let seek_offset = media_steps * conf.seek_step_microseconds;
 
                                         if Self::check_rate_limit(&mut self.last_media_call) {
-                                            let seek_offset =
-                                                direction * conf.seek_step_microseconds;
-                                            let cleared_delta = self.accumulated_delta_media;
-                                            pending.push(PendingAction::Media {
-                                                seek_offset,
-                                                cleared_delta,
-                                            });
-                                            self.accumulated_delta_media = 0.0;
+                                            pending.push(PendingAction::Media(seek_offset));
+                                            self.accumulated_delta_media -= seek_offset as f64;
                                         }
                                     }
                                 }
