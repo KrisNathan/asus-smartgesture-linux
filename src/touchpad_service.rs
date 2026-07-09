@@ -1,4 +1,4 @@
-use evdev::{AbsoluteAxisCode, Device, EventSummary, KeyCode};
+use evdev::{AbsoluteAxisCode, Device, EventSummary, KeyCode, SynchronizationCode};
 use std::collections::HashMap;
 use std::os::unix::io::{AsFd, BorrowedFd};
 use std::time::{Duration, Instant};
@@ -20,6 +20,16 @@ enum TouchpadActionMode {
     Media,
 }
 
+enum PendingAction {
+    Volume(f64),
+    Brightness(f64),
+    Media {
+        seek_offset: i64,
+        cleared_delta: f64,
+    },
+}
+
+#[derive(Clone, Copy)]
 struct TouchpadBounds {
     min_x: i32,
     max_x: i32,
@@ -184,6 +194,9 @@ where
     last_volume_call: Option<Instant>,
     last_brightness_call: Option<Instant>,
     last_media_call: Option<Instant>,
+
+    /// After SYN_DROPPED, ignore events until the next SYN_REPORT (may span batches).
+    skip_until_syn_report: bool,
 }
 
 impl<'a, CS, AS, BS, MS> TouchpadService<'a, CS, AS, BS, MS>
@@ -229,6 +242,7 @@ where
             last_volume_call: None,
             last_brightness_call: None,
             last_media_call: None,
+            skip_until_syn_report: false,
         })
     }
 
@@ -251,12 +265,79 @@ where
         );
     }
 
+    fn hard_resync(&mut self) {
+        self.active_touches.clear();
+        self.active_fingers = 0;
+        self.current_slot = 0;
+        self.accumulated_delta_volume = 0.0;
+        self.accumulated_delta_brightness = 0.0;
+        self.accumulated_delta_media = 0.0;
+        self.skip_until_syn_report = false;
+    }
+
+    pub fn reopen_device(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // Clear gesture state even if reopen fails, so a dead fd cannot keep driving actions.
+        self.hard_resync();
+        let device = get_touchpad_devices()?;
+        let bounds = get_touchpad_bounds(&device)?;
+        self.device = device;
+        self.bounds = bounds;
+        Ok(())
+    }
+
+    fn apply_pending(&mut self, pending: Vec<PendingAction>) {
+        for action in pending {
+            match action {
+                PendingAction::Volume(delta) => {
+                    if let Err(error) = self.audio_service.adjust_volume(&delta) {
+                        eprintln!("volume adjust failed: {error}");
+                        self.accumulated_delta_volume += delta;
+                    }
+                }
+                PendingAction::Brightness(delta) => {
+                    if let Err(error) = self.brightness_service.adjust_brightness(&delta) {
+                        eprintln!("brightness adjust failed: {error}");
+                        self.accumulated_delta_brightness += delta;
+                    }
+                }
+                PendingAction::Media {
+                    seek_offset,
+                    cleared_delta,
+                } => {
+                    if let Err(error) = self.media_service.seek(seek_offset) {
+                        eprintln!("media seek failed: {error}");
+                        self.accumulated_delta_media += cleared_delta;
+                    }
+                }
+            }
+        }
+    }
+
     pub fn fetch_events(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let bounds = &self.bounds;
-        let conf = self.conf.get_conf()?;
+        let bounds = self.bounds;
+        let conf = self.conf.get_conf()?.clone();
+        let mut pending = Vec::new();
 
         for event in self.device.fetch_events()? {
             match event.destructure() {
+                EventSummary::Synchronization(_, SynchronizationCode::SYN_DROPPED, _) => {
+                    // Inline clear: cannot call hard_resync while device is borrowed by the iterator.
+                    self.active_touches.clear();
+                    self.active_fingers = 0;
+                    self.current_slot = 0;
+                    self.accumulated_delta_volume = 0.0;
+                    self.accumulated_delta_brightness = 0.0;
+                    self.accumulated_delta_media = 0.0;
+                    pending.clear();
+                    // Ignore the rest of this torn frame until the next SYN_REPORT.
+                    self.skip_until_syn_report = true;
+                }
+                EventSummary::Synchronization(_, SynchronizationCode::SYN_REPORT, _)
+                    if self.skip_until_syn_report =>
+                {
+                    self.skip_until_syn_report = false;
+                }
+                _ if self.skip_until_syn_report => {}
                 EventSummary::Key(_, key, value) => {
                     let mut new_fingers = self.active_fingers;
                     match key {
@@ -343,7 +424,7 @@ where
                         // Only decide action if we have both X and Y coordinates
                         if !touch.action_decided {
                             if let Some(y) = touch.y {
-                                touch.action = get_action_mode(bounds, &conf, x as f64, y as f64);
+                                touch.action = get_action_mode(&bounds, &conf, x as f64, y as f64);
                                 touch.action_decided = true;
                             }
                         }
@@ -362,7 +443,7 @@ where
                         // Only decide action if we have both X and Y coordinates
                         if !touch.action_decided {
                             if let Some(x) = touch.x {
-                                touch.action = get_action_mode(bounds, &conf, x as f64, y as f64);
+                                touch.action = get_action_mode(&bounds, &conf, x as f64, y as f64);
                                 touch.action_decided = true;
                             }
                         }
@@ -386,7 +467,7 @@ where
                                         let rounded_delta = volume_steps as f64 * conf.volume_step;
 
                                         if Self::check_rate_limit(&mut self.last_volume_call) {
-                                            self.audio_service.adjust_volume(&rounded_delta)?;
+                                            pending.push(PendingAction::Volume(rounded_delta));
                                             self.accumulated_delta_volume -= rounded_delta;
                                         }
                                     }
@@ -414,8 +495,7 @@ where
                                             brightness_steps as f64 * conf.brightness_step;
 
                                         if Self::check_rate_limit(&mut self.last_brightness_call) {
-                                            self.brightness_service
-                                                .adjust_brightness(&rounded_delta)?;
+                                            pending.push(PendingAction::Brightness(rounded_delta));
                                             self.accumulated_delta_brightness -= rounded_delta;
                                         }
                                     }
@@ -441,7 +521,11 @@ where
                                         if Self::check_rate_limit(&mut self.last_media_call) {
                                             let seek_offset =
                                                 direction * conf.seek_step_microseconds;
-                                            self.media_service.seek(seek_offset)?;
+                                            let cleared_delta = self.accumulated_delta_media;
+                                            pending.push(PendingAction::Media {
+                                                seek_offset,
+                                                cleared_delta,
+                                            });
                                             self.accumulated_delta_media = 0.0;
                                         }
                                     }
@@ -457,6 +541,8 @@ where
                 _ => {}
             }
         }
+
+        self.apply_pending(pending);
         Ok(())
     }
 }

@@ -91,10 +91,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Check touchpad (index 1)
                 if let Some(revents) = poll_fds[1].revents() {
-                    if revents.contains(PollFlags::POLLIN) {
+                    let device_gone = revents
+                        .intersects(PollFlags::POLLERR | PollFlags::POLLHUP | PollFlags::POLLNVAL);
+
+                    if device_gone {
+                        eprintln!("touchpad device error/hangup; reopening");
+                        if let Err(error) = touchpad_service.reopen_device() {
+                            eprintln!("touchpad reopen failed: {error}");
+                            thread::sleep(Duration::from_millis(250));
+                        }
+                    } else if revents.contains(PollFlags::POLLIN) {
                         if let Err(error) = touchpad_service.fetch_events() {
                             eprintln!("touchpad event loop error: {error}");
-                            thread::sleep(Duration::from_millis(250));
+                            if let Err(reopen_error) = touchpad_service.reopen_device() {
+                                eprintln!("touchpad reopen failed: {reopen_error}");
+                                thread::sleep(Duration::from_millis(250));
+                            }
                         }
                     }
                 }
