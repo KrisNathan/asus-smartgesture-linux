@@ -70,7 +70,7 @@ fn get_touchpad_devices() -> Result<Device, Box<dyn std::error::Error>> {
             let has_touchpad = name.to_lowercase().contains("touchpad");
             let has_buttons = d
                 .supported_keys()
-                .map_or(false, |k| k.contains(KeyCode::BTN_LEFT));
+                .is_some_and(|k| k.contains(KeyCode::BTN_LEFT));
             (has_touchpad as i32, has_buttons as i32)
         })
         .ok_or("No touchpad devices found.")?;
@@ -416,11 +416,11 @@ where
                         touch.x = Some(x);
 
                         // Only decide action if we have both X and Y coordinates
-                        if !touch.action_decided {
-                            if let Some(y) = touch.y {
-                                touch.action = get_action_mode(&bounds, &conf, x as f64, y as f64);
-                                touch.action_decided = true;
-                            }
+                        if !touch.action_decided
+                            && let Some(y) = touch.y
+                        {
+                            touch.action = get_action_mode(&bounds, &conf, x as f64, y as f64);
+                            touch.action_decided = true;
                         }
                     }
                 }
@@ -435,11 +435,11 @@ where
                         touch.y = Some(y);
 
                         // Only decide action if we have both X and Y coordinates
-                        if !touch.action_decided {
-                            if let Some(x) = touch.x {
-                                touch.action = get_action_mode(&bounds, &conf, x as f64, y as f64);
-                                touch.action_decided = true;
-                            }
+                        if !touch.action_decided
+                            && let Some(x) = touch.x
+                        {
+                            touch.action = get_action_mode(&bounds, &conf, x as f64, y as f64);
+                            touch.action_decided = true;
                         }
 
                         match touch.action {

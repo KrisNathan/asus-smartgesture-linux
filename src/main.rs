@@ -69,23 +69,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(_) => {
                 // Check which FD has events
                 // Check pipe first (index 0)
-                if let Some(revents) = poll_fds[0].revents() {
-                    if revents.contains(PollFlags::POLLIN) {
-                        // Read and discard the byte from pipe
-                        let mut buf = [0u8; 1];
-                        match read(read_pipe.as_raw_fd(), &mut buf) {
-                            Ok(_) => {
-                                // Check if we should exit
-                                if !running.load(Ordering::SeqCst) {
-                                    break 'main_loop Ok(());
-                                }
+                if let Some(revents) = poll_fds[0].revents()
+                    && revents.contains(PollFlags::POLLIN)
+                {
+                    // Read and discard the byte from pipe
+                    let mut buf = [0u8; 1];
+                    match read(read_pipe.as_raw_fd(), &mut buf) {
+                        Ok(_) => {
+                            // Check if we should exit
+                            if !running.load(Ordering::SeqCst) {
+                                break 'main_loop Ok(());
                             }
-                            Err(e) => {
-                                eprintln!("failed to read from self-pipe: {e}");
-                                // Continue running, but check running flag
-                                if !running.load(Ordering::SeqCst) {
-                                    break 'main_loop Ok(());
-                                }
+                        }
+                        Err(e) => {
+                            eprintln!("failed to read from self-pipe: {e}");
+                            // Continue running, but check running flag
+                            if !running.load(Ordering::SeqCst) {
+                                break 'main_loop Ok(());
                             }
                         }
                     }
@@ -102,13 +102,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             eprintln!("touchpad reopen failed: {error}");
                             thread::sleep(Duration::from_millis(250));
                         }
-                    } else if revents.contains(PollFlags::POLLIN) {
-                        if let Err(error) = touchpad_service.fetch_events() {
-                            eprintln!("touchpad event loop error: {error}");
-                            if let Err(reopen_error) = touchpad_service.reopen_device() {
-                                eprintln!("touchpad reopen failed: {reopen_error}");
-                                thread::sleep(Duration::from_millis(250));
-                            }
+                    } else if revents.contains(PollFlags::POLLIN)
+                        && let Err(error) = touchpad_service.fetch_events()
+                    {
+                        eprintln!("touchpad event loop error: {error}");
+                        if let Err(reopen_error) = touchpad_service.reopen_device() {
+                            eprintln!("touchpad reopen failed: {reopen_error}");
+                            thread::sleep(Duration::from_millis(250));
                         }
                     }
                 }
